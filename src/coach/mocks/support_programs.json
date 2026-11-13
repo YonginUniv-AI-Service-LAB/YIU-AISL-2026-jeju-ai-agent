@@ -1,0 +1,6 @@
+[
+  {"id": "P01", "title": "제주도 경영위험군 경영진단·컨설팅 및 이행지원금(업체당 최대 300만 원)",
+   "fits": ["co_decline", "only_me"], "url": "http://www.ilganjeju.com/news/articleView.html?idxno=150664"},
+  {"id": "P02", "title": "제주사랑상품권(탐나는전) 가맹 — 데이터 No.1152로 가맹 여부 확인",
+   "fits": ["co_decline", "season_weather", "only_me"], "url": "제주데이터허브 No.1152"}
+]

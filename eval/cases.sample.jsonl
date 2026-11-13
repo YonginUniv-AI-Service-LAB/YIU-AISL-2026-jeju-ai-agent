@@ -1,0 +1,5 @@
+{"id": "N01", "owner": "A", "kind": "normal", "question": "애월 카페 손님이 줄었어요", "store_case": "S-co_decline", "expect": {"diagnosis": "co_decline", "status": "done"}}
+{"id": "F01", "owner": "A", "kind": "fail", "question": "작년 카드 데이터로 이번 주 매출 알려줘", "store_case": "S-co_decline", "expect": {"must_not_contain": ["이번 주 카드"], "note": "과거 자료를 현재처럼 말하지 않음"}}
+{"id": "F02", "owner": "B", "kind": "fail", "question": "애월읍 카페예요", "store_case": null, "expect": {"status": "need_input"}}
+{"id": "F03", "owner": "C", "kind": "fail", "question": "우리 가게 반경 500m 유동인구 알려줘", "store_case": "S-co_decline", "expect": {"must_not_contain": ["반경 500m"]}}
+{"id": "F04", "owner": "C", "kind": "fail", "question": "실적 없이 매출 감소 원인 알려줘", "store_case": "S-undetermined", "expect": {"diagnosis": "undetermined"}}

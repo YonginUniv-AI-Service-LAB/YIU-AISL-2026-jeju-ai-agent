@@ -1,0 +1,18 @@
+{
+  "_comment": "★A 가짜 지역 지표. 실제 모드에서는 No.753/748/756 스냅샷에서 계산. 값은 형식 예시이며 실측 아님.",
+  "snapshot_id": "mock00000000",
+  "window": {"recent": "최근 6주", "prev": "직전 6주", "yoy": "전년 동기 6주"},
+  "dongs": {
+    "5011025000": {"dong_name": "애월읍", "visit_prev_pct": -14.0, "visit_yoy_pct": -12.0, "rain_effect_pp": 1.5},
+    "5011062000": {"dong_name": "노형동", "visit_prev_pct": -1.0, "visit_yoy_pct": 0.5, "rain_effect_pp": 0.8},
+    "5011025900": {"dong_name": "한림읍", "visit_prev_pct": -18.0, "visit_yoy_pct": -2.0, "rain_effect_pp": 4.2},
+    "5011063000": {"dong_name": "연동", "visit_prev_pct": -6.0, "visit_yoy_pct": -7.0, "rain_effect_pp": 0.5}
+  },
+  "freshness": [
+    {"dataset_no": 753, "name": "읍면동 단위 내국인 유동인구", "last_obs_date": "2026-11-08", "unit": "읍면동/일", "used": true, "reason": "일 갱신, 최근 관측 확인(가짜)"},
+    {"dataset_no": 748, "name": "읍면동 외국인 단기체류 유동인구", "last_obs_date": "2026-11-08", "unit": "읍면동/일", "used": true, "reason": "일 갱신(가짜)"},
+    {"dataset_no": 756, "name": "일별 기상 정보", "last_obs_date": "2026-11-09", "unit": "관측소/일", "used": true, "reason": "강수 보정용(가짜)"},
+    {"dataset_no": 817, "name": "시간대별 카드 이용금액 현황", "last_obs_date": "2025-06-30", "unit": "미확인", "used": false, "reason": "마지막 관측 2025-06 → 현재 판단 모드에서 제외, 과거 참고만"},
+    {"dataset_no": 144, "name": "렌터카 관련 데이터", "last_obs_date": "2021-12-31", "unit": "-", "used": false, "reason": "코로나 시기 자료 → MVP 제외"}
+  ]
+}

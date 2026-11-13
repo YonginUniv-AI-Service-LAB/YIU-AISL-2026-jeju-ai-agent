@@ -1,0 +1,196 @@
+{
+  "$defs": {
+    "Diagnosis": {
+      "enum": [
+        "co_decline",
+        "only_me",
+        "season_weather",
+        "undetermined"
+      ],
+      "title": "Diagnosis",
+      "type": "string"
+    },
+    "Experiment": {
+      "additionalProperties": false,
+      "properties": {
+        "catalog_id": {
+          "title": "Catalog Id",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "duration_days": {
+          "default": 14,
+          "title": "Duration Days",
+          "type": "integer"
+        },
+        "cost_krw": {
+          "minimum": 0,
+          "title": "Cost Krw",
+          "type": "integer"
+        },
+        "extra_staff": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Extra Staff",
+          "type": "integer"
+        },
+        "metric": {
+          "description": "성공 판단 지표. 예: 평일 오후 공헌이익",
+          "title": "Metric",
+          "type": "string"
+        },
+        "stop_rule": {
+          "title": "Stop Rule",
+          "type": "string"
+        },
+        "rationale": {
+          "$ref": "#/$defs/Sentence"
+        }
+      },
+      "required": [
+        "catalog_id",
+        "title",
+        "cost_krw",
+        "metric",
+        "stop_rule",
+        "rationale"
+      ],
+      "title": "Experiment",
+      "type": "object"
+    },
+    "Mode": {
+      "enum": [
+        "current",
+        "past_ref",
+        "region_only"
+      ],
+      "title": "Mode",
+      "type": "string"
+    },
+    "Sentence": {
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "claim_ids": {
+          "description": "근거 claim_id. 수치가 들어간 문장은 필수",
+          "items": {
+            "type": "string"
+          },
+          "title": "Claim Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "Sentence",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "contract_version": {
+      "default": "0.1.0",
+      "title": "Contract Version",
+      "type": "string"
+    },
+    "mode": {
+      "$ref": "#/$defs/Mode"
+    },
+    "diagnosis": {
+      "$ref": "#/$defs/Diagnosis"
+    },
+    "observed": {
+      "items": {
+        "$ref": "#/$defs/Sentence"
+      },
+      "title": "Observed",
+      "type": "array"
+    },
+    "my_store": {
+      "items": {
+        "$ref": "#/$defs/Sentence"
+      },
+      "title": "My Store",
+      "type": "array"
+    },
+    "hypotheses": {
+      "items": {
+        "$ref": "#/$defs/Sentence"
+      },
+      "title": "Hypotheses",
+      "type": "array"
+    },
+    "to_check": {
+      "items": {
+        "$ref": "#/$defs/Sentence"
+      },
+      "title": "To Check",
+      "type": "array"
+    },
+    "experiment": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Experiment"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "alternatives": {
+      "items": {
+        "$ref": "#/$defs/Experiment"
+      },
+      "title": "Alternatives",
+      "type": "array"
+    },
+    "support_programs": {
+      "items": {
+        "$ref": "#/$defs/Sentence"
+      },
+      "title": "Support Programs",
+      "type": "array"
+    },
+    "limits": {
+      "items": {
+        "$ref": "#/$defs/Sentence"
+      },
+      "title": "Limits",
+      "type": "array"
+    },
+    "sources": {
+      "description": "데이터 No.·이름·기준일",
+      "items": {
+        "type": "string"
+      },
+      "title": "Sources",
+      "type": "array"
+    },
+    "is_synthetic_input": {
+      "default": false,
+      "title": "Is Synthetic Input",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "mode",
+    "diagnosis",
+    "observed",
+    "my_store",
+    "hypotheses",
+    "to_check",
+    "limits",
+    "sources"
+  ],
+  "title": "Report",
+  "type": "object",
+  "$id": "jeju-coach/report/0.1.0"
+}

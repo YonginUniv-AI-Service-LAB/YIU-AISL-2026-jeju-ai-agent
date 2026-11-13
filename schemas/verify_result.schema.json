@@ -1,0 +1,68 @@
+{
+  "$defs": {
+    "Violation": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/ViolationType"
+        },
+        "section": {
+          "title": "Section",
+          "type": "string"
+        },
+        "sentence": {
+          "title": "Sentence",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "section",
+        "sentence",
+        "reason"
+      ],
+      "title": "Violation",
+      "type": "object"
+    },
+    "ViolationType": {
+      "enum": [
+        "number_mismatch",
+        "missing_evidence",
+        "banned_phrase",
+        "constraint_violation",
+        "past_as_current"
+      ],
+      "title": "ViolationType",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "passed": {
+      "title": "Passed",
+      "type": "boolean"
+    },
+    "violations": {
+      "items": {
+        "$ref": "#/$defs/Violation"
+      },
+      "title": "Violations",
+      "type": "array"
+    },
+    "checked_claims": {
+      "default": 0,
+      "title": "Checked Claims",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "passed"
+  ],
+  "title": "VerifyResult",
+  "type": "object",
+  "$id": "jeju-coach/verify_result/0.1.0"
+}

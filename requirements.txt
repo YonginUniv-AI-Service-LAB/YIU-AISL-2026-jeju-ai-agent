@@ -1,0 +1,5 @@
+pydantic>=2.6
+langgraph==1.2.20
+pyyaml>=6.0
+pytest>=8.0
+# 실제 모드에서 추가: pandas, duckdb, requests, langchain-openai(또는 사용 LLM SDK), streamlit

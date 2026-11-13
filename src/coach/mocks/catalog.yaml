@@ -1,0 +1,50 @@
+# ★C 행동 카탈로그 초안(15개까지 확장). 비용·인력은 예시값.
+# fits: 어떤 진단 유형에 적합한지 / requires: 변경 가능 항목 중 필요한 것
+- id: X01
+  title: 평일 오후 테이크아웃 묶음(기존 메뉴 2종) 한정 판매
+  fits: [co_decline, season_weather]
+  requires: [menu, price]
+  cost_krw: 50000
+  extra_staff: 0
+  metric: 평일 14-17시 주문 수와 공헌이익(할인·재료비 반영)
+  stop_rule: 추가 공헌이익보다 할인·폐기 비용이 2주 연속 크면 중단
+- id: X02
+  title: 비 오는 날 한정 배달앱 노출 쿠폰
+  fits: [season_weather]
+  requires: [channel]
+  cost_krw: 100000
+  extra_staff: 0
+  metric: 강수일 배달 주문 수(비강수일 대비)
+  stop_rule: 쿠폰 비용이 강수일 추가 공헌이익을 넘으면 중단
+- id: X03
+  title: 대표 메뉴 1종 가격·구성 점검(동종 점포 메뉴판 3곳 비교)
+  fits: [only_me]
+  requires: [menu, price]
+  cost_krw: 0
+  extra_staff: 0
+  metric: 대표 메뉴 판매 비중과 객단가
+  stop_rule: 2주간 대표 메뉴 판매량이 변경 전보다 10% 이상 줄면 원복
+- id: X04
+  title: 지도앱·SNS 매장 정보(사진·영업시간) 정비 + 리뷰 응답
+  fits: [only_me, co_decline]
+  requires: [channel]
+  cost_krw: 0
+  extra_staff: 0
+  metric: 지도앱 길찾기·전화 클릭 수, 신규 고객 비율(영수증 표본)
+  stop_rule: 해당 없음(비용 0) — 2주 후 지표만 기록
+- id: X05
+  title: 오전 오픈 시간 1시간 단축 후 오후 집중
+  fits: [co_decline]
+  requires: [hours]
+  cost_krw: 0
+  extra_staff: 0
+  metric: 시간당 공헌이익
+  stop_rule: 총 공헌이익이 변경 전 2주 대비 5% 이상 줄면 원복
+- id: X06
+  title: 주말 브런치 세트 신규 도입
+  fits: [co_decline]
+  requires: [menu]
+  cost_krw: 400000
+  extra_staff: 1
+  metric: 주말 오전 매출
+  stop_rule: 재료 폐기율 15% 초과 시 중단

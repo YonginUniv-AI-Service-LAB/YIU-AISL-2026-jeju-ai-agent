@@ -1,0 +1,161 @@
+{
+  "$defs": {
+    "Changeable": {
+      "enum": [
+        "menu",
+        "hours",
+        "price",
+        "channel"
+      ],
+      "title": "Changeable",
+      "type": "string"
+    },
+    "WeeklyRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "week_start": {
+          "description": "해당 주 월요일",
+          "format": "date",
+          "title": "Week Start",
+          "type": "string"
+        },
+        "sales_krw": {
+          "minimum": 0,
+          "title": "Sales Krw",
+          "type": "integer"
+        },
+        "orders": {
+          "minimum": 0,
+          "title": "Orders",
+          "type": "integer"
+        },
+        "open_days": {
+          "maximum": 7,
+          "minimum": 0,
+          "title": "Open Days",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "week_start",
+        "sales_krw",
+        "orders",
+        "open_days"
+      ],
+      "title": "WeeklyRecord",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "dong_code": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "행정동/법정동 코드(10자리). A의 매핑표 기준",
+      "title": "Dong Code"
+    },
+    "dong_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "예: 애월읍",
+      "title": "Dong Name"
+    },
+    "industry": {
+      "const": "cafe",
+      "default": "cafe",
+      "title": "Industry",
+      "type": "string"
+    },
+    "weeks": {
+      "description": "최근 8~12주 권장. 비어 있으면 '지역 수요 참고 분석'으로 강등",
+      "items": {
+        "$ref": "#/$defs/WeeklyRecord"
+      },
+      "title": "Weeks",
+      "type": "array"
+    },
+    "open_hours": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "예: 09:00-20:00",
+      "title": "Open Hours"
+    },
+    "staff_am": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Staff Am"
+    },
+    "staff_pm": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Staff Pm"
+    },
+    "budget_krw": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "이번 달 실험에 쓸 수 있는 예산",
+      "title": "Budget Krw"
+    },
+    "changeable": {
+      "items": {
+        "$ref": "#/$defs/Changeable"
+      },
+      "title": "Changeable",
+      "type": "array"
+    },
+    "is_synthetic": {
+      "default": false,
+      "description": "데모용 합성 점주 데이터 여부(리포트에 표시)",
+      "title": "Is Synthetic",
+      "type": "boolean"
+    }
+  },
+  "title": "StoreInput",
+  "type": "object",
+  "$id": "jeju-coach/store_input/0.1.0"
+}
