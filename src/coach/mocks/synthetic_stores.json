@@ -3,7 +3,7 @@
     "case_id": "S-co_decline",
     "expected_diagnosis": "co_decline",
     "store_input": {
-      "dong_code": "5011025000",
+      "dong_code": "5011025300",
       "dong_name": "애월읍",
       "weeks": [
         {
@@ -96,7 +96,7 @@
     "case_id": "S-only_me",
     "expected_diagnosis": "only_me",
     "store_input": {
-      "dong_code": "5011062000",
+      "dong_code": "5011066000",
       "dong_name": "노형동",
       "weeks": [
         {
@@ -189,7 +189,7 @@
     "case_id": "S-season_weather",
     "expected_diagnosis": "season_weather",
     "store_input": {
-      "dong_code": "5011025900",
+      "dong_code": "5011025000",
       "dong_name": "한림읍",
       "weeks": [
         {
@@ -282,7 +282,7 @@
     "case_id": "S-undetermined",
     "expected_diagnosis": "undetermined",
     "store_input": {
-      "dong_code": "5011063000",
+      "dong_code": "5011065000",
       "dong_name": "연동",
       "weeks": [],
       "industry": "cafe",

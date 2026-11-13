@@ -218,3 +218,13 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# jeju-coach: 원본 데이터·스냅샷은 커밋하지 않음 (재배포 조건 확인 전)
+data/raw/
+data/snapshot/
+
+# 개인·로컬 문서 (Notion으로 공유)
+CLAUDE.md
+DATA_INTAKE.md
+docs/
+.vscode/

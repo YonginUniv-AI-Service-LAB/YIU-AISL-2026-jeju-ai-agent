@@ -39,3 +39,21 @@ START → parse_input ─┬─(빠진 조건)→ ask_back → END
 - `classify()` 임계값은 합성 데이터 4유형이 갈리도록 잡은 초기값입니다.
 - 재방문 점검은 단일 점포 전후 비교로, 효과를 확정하지 않습니다.
 - `drop_violations`는 섹션 문장만 제거합니다. 실험(experiment) 제약 위반은 설계 단계 필터로 사전 차단합니다.
+
+## A 실데이터 모드 (1차 통합 테스트)
+지역 지표를 실제 스냅샷(제주데이터허브 No.753·748 + 기상청 ASOS)에서 계산합니다. 실행 중에는 API를 부르지 않고 스냅샷만 읽습니다.
+
+```bash
+# 1) 스냅샷 준비 — 저장소에 없음(재배포 조건 확인 전). 둘 중 하나:
+#    (a) 팀에서 따로 받은 data/snapshot/2026-08-31/ 폴더를 그대로 넣기 (manifest.json 의 sha256 으로 자동 검사)
+#    (b) 직접 만들기: .env 에 JEJU_DATAHUB_KEY, DATA_GO_KR_API_KEY 입력 후
+python scripts/fetch_snapshot.py      # API 원본 → data/raw/fetch/ (서버가 불안정해 재시도 포함 약 10분)
+python scripts/build_snapshot.py      # → data/snapshot/2026-08-31/*.parquet + manifest.json (snapshot_id 출력)
+
+# 2) 실행 (PowerShell 은 $env:COACH_MOCK="0"; $env:COACH_LLM="0" 후 실행)
+COACH_MOCK=0 COACH_LLM=0 python -m pytest tests/test_integration_real.py -q
+COACH_MOCK=0 COACH_LLM=0 python scripts/run_real_scenario.py          # 사람이 읽는 출력
+```
+- 기준일 2026-08-31(753·748 실제 마지막 관측일), 시범 시나리오 only_me·노형동. 결정 근거: 노션 A파트 「decisions」, 데이터 명세: 노션 A파트 「data_spec」
+- `COACH_MOCK=1`(기본)에서는 실데이터 테스트가 자동으로 건너뜁니다.
+- 읍면동 코드는 행정안전부 행정동코드(KIKmix 2026-07-01)로 교체됨: 애월읍 5011025300 · 노형동 5011066000 · 한림읍 5011025000 · 연동 5011065000
