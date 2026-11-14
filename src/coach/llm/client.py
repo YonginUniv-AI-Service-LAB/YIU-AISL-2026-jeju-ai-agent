@@ -7,7 +7,7 @@
 환경변수(.env):
   LLM_PROVIDER = gemini            (기본값)
   LLM_API_KEY  = ...               (Google AI Studio 키)
-  LLM_MODEL    = gemini-2.5-flash-lite (기본값)
+  LLM_MODEL    = gemini-3.5-flash-lite (기본값)
   LLM_TIMEOUT_S = 15
 """
 from __future__ import annotations

@@ -16,6 +16,9 @@ from coach.nodes import b_orchestrator as B
     ("혼자 운영해요", {"staff_am": 1, "staff_pm": 1}),
     ("예산은 없어요", {"budget_krw": 0}),
     ("예산 30만 원 정도", {"budget_krw": 300000}),
+    ("오전 9시부터 영업해요", {"staff_am": None}),      # 시각은 인원이 아님
+    ("오후 세 시에 문 닫아요", {"staff_pm": None}),
+    ("오전 10시 오픈, 오전엔 둘", {"staff_am": 2}),     # 두 자리 시각도 제외하고 인원만
 ])
 def test_rule_extract_staff_and_budget(q, expected):
     out = B._rule_extract(q)

@@ -61,7 +61,8 @@ def _rule_extract(q: str) -> dict:
         out["budget_krw"] = 0
     # 인력: "오전 2명", "오전엔 둘", "오후에 한 명", "혼자"
     for slot, kw in (("staff_am", "오전"), ("staff_pm", "오후")):
-        if m := re.search(kw + r"\s*(?:에는|에|엔|은|는)?\s*" + _NUM + r"\s*(?:명|사람)?", q):
+        # (?![\d\s]*시): "오전 9시", "오후 세 시", "10시"처럼 숫자 뒤에 '시'가 오면 시각이라 제외
+        if m := re.search(kw + r"\s*(?:에는|에|엔|은|는)?\s*" + _NUM + r"(?![\d\s]*시)\s*(?:명|사람)?", q):
             out[slot] = _to_int(m.group(1))
     if re.search(r"혼자", q):  # 이미 숫자로 말한 값이 있으면 덮어쓰지 않음(setdefault)
         out.setdefault("staff_am", 1)
