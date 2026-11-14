@@ -44,7 +44,7 @@ def test_llm_path_maps_dong_code(monkeypatch):
                                                changeable=["menu", "menu"])))
     st = B.parse_input({"question": "애월 카페", "trace": [], "llm_available": True})
     si = st["store_input"]
-    assert si["dong_code"] == "5011025000" and si["changeable"] == ["menu"]
+    assert si["dong_code"] == B._dong_codes()["애월읍"] and si["changeable"] == ["menu"]  # 코드는 json 기준
     assert st["missing_slots"] == [] and st["llm_available"] is True
 
 
