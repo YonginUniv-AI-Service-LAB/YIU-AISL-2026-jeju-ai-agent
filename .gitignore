@@ -218,3 +218,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# B 세션 저장 파일 (점주 정보 — 커밋 금지)
+data/sessions/
