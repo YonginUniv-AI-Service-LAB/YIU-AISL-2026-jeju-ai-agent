@@ -1,0 +1,1 @@
+"""B LLM 연결부. 회사(provider)를 바꿀 때는 client.py 만 고친다."""
