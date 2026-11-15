@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import re
+import secrets
 from datetime import date
 from pathlib import Path
 
@@ -20,7 +21,18 @@ from .graph import run
 SESSION_DIR = ROOT / "data" / "sessions"
 _ID_OK = re.compile(r"^[A-Za-z0-9_-]{1,40}$")  # 경로 조작 방지: 영문·숫자·_- 만
 
+# 헷갈리는 글자(0/O, 1/I/l) 제외한 대문자·숫자
+_CODE_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
 
+
+def new_session_id(length: int = 6) -> str:
+    """세션 코드 자동 발급. 이미 있는 코드면 다시 뽑는다.
+    ※ 코드만 알면 세션을 열 수 있으므로 화면에 '코드를 남에게 알려 주지 마세요' 안내 필요."""
+    while True:
+        sid = "".join(secrets.choice(_CODE_CHARS) for _ in range(length))
+        if not _path(sid).exists():
+            return sid
+        
 def _path(session_id: str) -> Path:
     if not _ID_OK.match(session_id or ""):
         raise ValueError("세션 코드는 영문·숫자·_- 1~40자만 쓸 수 있어요.")

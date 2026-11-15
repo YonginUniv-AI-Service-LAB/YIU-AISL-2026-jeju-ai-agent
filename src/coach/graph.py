@@ -28,11 +28,12 @@ def build_graph():
 
     g.add_edge(START, "parse_input")
     g.add_conditional_edges("parse_input", B.route_after_parse,
-                            {"ask_back": "ask_back", "review_experiment": "review_experiment", "check_fitness": "check_fitness"})
+                            {"ask_back": "ask_back", "check_fitness": "check_fitness"})
     g.add_edge("ask_back", END)
-    g.add_edge("review_experiment", "check_fitness")
     g.add_edge("check_fitness", "analyze")
-    g.add_edge("analyze", "design_experiment")
+    g.add_conditional_edges("analyze", B.route_after_analyze,
+                            {"review_experiment": "review_experiment", "design_experiment": "design_experiment"})
+    g.add_edge("review_experiment", "design_experiment")
     g.add_edge("design_experiment", "compose_report")
     g.add_edge("compose_report", "verify")
     g.add_conditional_edges("verify", B.route_after_verify,

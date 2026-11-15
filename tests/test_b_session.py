@@ -40,3 +40,9 @@ def test_ask_back_is_not_saved():
 def test_bad_session_id_rejected(bad):
     with pytest.raises(ValueError):
         S.load_previous(bad)
+        
+
+def test_new_session_id_format():
+    sid = S.new_session_id()
+    assert len(sid) == 6 and not set(sid) & set("0O1Il")
+    assert S._ID_OK.match(sid)
