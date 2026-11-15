@@ -5,3 +5,8 @@ pytest>=8.0
 python-dotenv>=1.0
 google-genai>=1.0
 # 실제 모드에서 추가: pandas, duckdb, requests, langchain-openai(또는 사용 LLM SDK), streamlit
+
+# A 실제 모드(COACH_MOCK=0): 스냅샷 읽기·지표 계산 / 데이터 내려받기 스크립트
+pandas>=2.2
+pyarrow>=15.0
+requests>=2.31

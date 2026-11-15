@@ -1,0 +1,305 @@
+[
+  {
+    "case_id": "S-co_decline",
+    "expected_diagnosis": "co_decline",
+    "store_input": {
+      "dong_code": "5011025300",
+      "dong_name": "애월읍",
+      "weeks": [
+        {
+          "week_start": "2026-06-08",
+          "sales_krw": 2749500,
+          "orders": 423,
+          "open_days": 6
+        },
+        {
+          "week_start": "2026-06-15",
+          "sales_krw": 2652000,
+          "orders": 408,
+          "open_days": 6
+        },
+        {
+          "week_start": "2026-06-22",
+          "sales_krw": 2691000,
+          "orders": 414,
+          "open_days": 6
+        },
+        {
+          "week_start": "2026-06-29",
+          "sales_krw": 2684500,
+          "orders": 413,
+          "open_days": 6
+        },
+        {
+          "week_start": "2026-07-06",
+          "sales_krw": 2762500,
+          "orders": 425,
+          "open_days": 6
+        },
+        {
+          "week_start": "2026-07-13",
+          "sales_krw": 2756000,
+          "orders": 424,
+          "open_days": 6
+        },
+        {
+          "week_start": "2026-07-20",
+          "sales_krw": 2372500,
+          "orders": 365,
+          "open_days": 6
+        },
+        {
+          "week_start": "2026-07-27",
+          "sales_krw": 2262000,
+          "orders": 348,
+          "open_days": 6
+        },
+        {
+          "week_start": "2026-08-03",
+          "sales_krw": 2307500,
+          "orders": 355,
+          "open_days": 6
+        },
+        {
+          "week_start": "2026-08-10",
+          "sales_krw": 2249000,
+          "orders": 346,
+          "open_days": 6
+        },
+        {
+          "week_start": "2026-08-17",
+          "sales_krw": 2275000,
+          "orders": 350,
+          "open_days": 6
+        },
+        {
+          "week_start": "2026-08-24",
+          "sales_krw": 2320500,
+          "orders": 357,
+          "open_days": 6
+        }
+      ],
+      "industry": "cafe",
+      "open_hours": "09:00-20:00",
+      "staff_am": 1,
+      "staff_pm": 2,
+      "budget_krw": 300000,
+      "changeable": [
+        "menu",
+        "channel",
+        "price"
+      ],
+      "is_synthetic": true
+    },
+    "_note": "실제 모드용 사본: 원본 주차를 -70일 이동(값 동일). 원본은 synthetic_stores.json"
+  },
+  {
+    "case_id": "S-only_me",
+    "expected_diagnosis": "only_me",
+    "store_input": {
+      "dong_code": "5011066000",
+      "dong_name": "노형동",
+      "weeks": [
+        {
+          "week_start": "2026-06-08",
+          "sales_krw": 2398500,
+          "orders": 369,
+          "open_days": 6
+        },
+        {
+          "week_start": "2026-06-15",
+          "sales_krw": 2424500,
+          "orders": 373,
+          "open_days": 6
+        },
+        {
+          "week_start": "2026-06-22",
+          "sales_krw": 2489500,
+          "orders": 383,
+          "open_days": 6
+        },
+        {
+          "week_start": "2026-06-29",
+          "sales_krw": 2476500,
+          "orders": 381,
+          "open_days": 6
+        },
+        {
+          "week_start": "2026-07-06",
+          "sales_krw": 2424500,
+          "orders": 373,
+          "open_days": 6
+        },
+        {
+          "week_start": "2026-07-13",
+          "sales_krw": 2483000,
+          "orders": 382,
+          "open_days": 6
+        },
+        {
+          "week_start": "2026-07-20",
+          "sales_krw": 2008500,
+          "orders": 309,
+          "open_days": 6
+        },
+        {
+          "week_start": "2026-07-27",
+          "sales_krw": 1911000,
+          "orders": 294,
+          "open_days": 6
+        },
+        {
+          "week_start": "2026-08-03",
+          "sales_krw": 2008500,
+          "orders": 309,
+          "open_days": 6
+        },
+        {
+          "week_start": "2026-08-10",
+          "sales_krw": 1995500,
+          "orders": 307,
+          "open_days": 6
+        },
+        {
+          "week_start": "2026-08-17",
+          "sales_krw": 1956500,
+          "orders": 301,
+          "open_days": 6
+        },
+        {
+          "week_start": "2026-08-24",
+          "sales_krw": 1930500,
+          "orders": 297,
+          "open_days": 6
+        }
+      ],
+      "industry": "cafe",
+      "open_hours": "09:00-20:00",
+      "staff_am": 1,
+      "staff_pm": 2,
+      "budget_krw": 300000,
+      "changeable": [
+        "menu",
+        "channel",
+        "price"
+      ],
+      "is_synthetic": true
+    },
+    "_note": "실제 모드용 사본: 원본 주차를 -70일 이동(값 동일). 원본은 synthetic_stores.json"
+  },
+  {
+    "case_id": "S-season_weather",
+    "expected_diagnosis": "season_weather",
+    "store_input": {
+      "dong_code": "5011025000",
+      "dong_name": "한림읍",
+      "weeks": [
+        {
+          "week_start": "2026-06-08",
+          "sales_krw": 2002000,
+          "orders": 308,
+          "open_days": 6
+        },
+        {
+          "week_start": "2026-06-15",
+          "sales_krw": 1930500,
+          "orders": 297,
+          "open_days": 6
+        },
+        {
+          "week_start": "2026-06-22",
+          "sales_krw": 1898000,
+          "orders": 292,
+          "open_days": 6
+        },
+        {
+          "week_start": "2026-06-29",
+          "sales_krw": 1898000,
+          "orders": 292,
+          "open_days": 6
+        },
+        {
+          "week_start": "2026-07-06",
+          "sales_krw": 1989000,
+          "orders": 306,
+          "open_days": 6
+        },
+        {
+          "week_start": "2026-07-13",
+          "sales_krw": 1956500,
+          "orders": 301,
+          "open_days": 6
+        },
+        {
+          "week_start": "2026-07-20",
+          "sales_krw": 1644500,
+          "orders": 253,
+          "open_days": 6
+        },
+        {
+          "week_start": "2026-07-27",
+          "sales_krw": 1638000,
+          "orders": 252,
+          "open_days": 6
+        },
+        {
+          "week_start": "2026-08-03",
+          "sales_krw": 1618500,
+          "orders": 249,
+          "open_days": 6
+        },
+        {
+          "week_start": "2026-08-10",
+          "sales_krw": 1664000,
+          "orders": 256,
+          "open_days": 6
+        },
+        {
+          "week_start": "2026-08-17",
+          "sales_krw": 1605500,
+          "orders": 247,
+          "open_days": 6
+        },
+        {
+          "week_start": "2026-08-24",
+          "sales_krw": 1618500,
+          "orders": 249,
+          "open_days": 6
+        }
+      ],
+      "industry": "cafe",
+      "open_hours": "09:00-20:00",
+      "staff_am": 1,
+      "staff_pm": 2,
+      "budget_krw": 300000,
+      "changeable": [
+        "menu",
+        "channel",
+        "price"
+      ],
+      "is_synthetic": true
+    },
+    "_note": "실제 모드용 사본: 원본 주차를 -70일 이동(값 동일). 원본은 synthetic_stores.json"
+  },
+  {
+    "case_id": "S-undetermined",
+    "expected_diagnosis": "undetermined",
+    "store_input": {
+      "dong_code": "5011065000",
+      "dong_name": "연동",
+      "weeks": [],
+      "industry": "cafe",
+      "open_hours": "09:00-20:00",
+      "staff_am": 1,
+      "staff_pm": 2,
+      "budget_krw": 300000,
+      "changeable": [
+        "menu",
+        "channel",
+        "price"
+      ],
+      "is_synthetic": true
+    },
+    "_note": "실제 모드용 사본: 원본 주차를 -70일 이동(값 동일). 원본은 synthetic_stores.json"
+  }
+]
