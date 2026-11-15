@@ -15,6 +15,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 from coach.nodes import b_orchestrator as B
 
+# Windows 기본 콘솔(cp949)에서 ✅/❌ 출력 시 UnicodeEncodeError 방지
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+
 use_llm = "--llm" in sys.argv
 cases = [json.loads(l) for l in (ROOT / "eval" / "cases_b.jsonl").read_text(encoding="utf-8").splitlines() if l.strip()]
 
