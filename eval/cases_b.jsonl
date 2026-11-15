@@ -1,0 +1,5 @@
+{"id": "B01", "node": "B", "point": "지역을 줄여 말함 + 한글 수사", "question": "애월 쪽에서 작은 카페 해요. 예산은 20만 원, 오전 둘 오후 하나예요", "expect": {"slots": {"dong_name": "애월읍", "budget_krw": 200000, "staff_am": 2, "staff_pm": 1}, "missing": []}}
+{"id": "B02", "node": "B", "point": "시각과 인원이 섞임", "question": "노형동 카페예요. 오전 9시에 열고 오전엔 둘이서 해요. 예산 10만", "expect": {"slots": {"dong_name": "노형동", "budget_krw": 100000, "staff_am": 2}, "missing": ["staff_pm"]}}
+{"id": "B03", "node": "B", "point": "시범 지역 밖 → 지어내지 않고 되묻기", "question": "중문에서 카페해요. 예산 20만, 혼자 운영해요", "expect": {"slots": {"budget_krw": 200000, "staff_am": 1, "staff_pm": 1}, "missing": ["dong_code"]}}
+{"id": "B04", "node": "B", "point": "예산을 모름 → 되묻기", "question": "한림읍 카페, 오전 1명 오후 2명이에요. 예산은 아직 잘 모르겠어요", "expect": {"slots": {"dong_name": "한림읍", "staff_am": 1, "staff_pm": 2}, "missing": ["budget_krw"]}}
+{"id": "B05", "node": "B", "point": "조건이 한 문장에 섞인 긴 설명", "question": "연동에서 카페하는데 예산은 30만원이고, 평일 오전엔 저 혼자, 오후엔 알바 한 명 더 해서 두 명이에요. 메뉴랑 배달은 바꿀 수 있어요", "expect": {"slots": {"dong_name": "연동", "budget_krw": 300000, "staff_am": 1, "staff_pm": 2, "changeable": ["menu", "channel"]}, "missing": []}}
