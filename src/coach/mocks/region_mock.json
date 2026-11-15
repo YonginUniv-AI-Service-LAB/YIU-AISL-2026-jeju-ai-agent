@@ -3,10 +3,10 @@
   "snapshot_id": "mock00000000",
   "window": {"recent": "최근 6주", "prev": "직전 6주", "yoy": "전년 동기 6주"},
   "dongs": {
-    "5011025000": {"dong_name": "애월읍", "visit_prev_pct": -14.0, "visit_yoy_pct": -12.0, "rain_effect_pp": 1.5},
-    "5011062000": {"dong_name": "노형동", "visit_prev_pct": -1.0, "visit_yoy_pct": 0.5, "rain_effect_pp": 0.8},
-    "5011025900": {"dong_name": "한림읍", "visit_prev_pct": -18.0, "visit_yoy_pct": -2.0, "rain_effect_pp": 4.2},
-    "5011063000": {"dong_name": "연동", "visit_prev_pct": -6.0, "visit_yoy_pct": -7.0, "rain_effect_pp": 0.5}
+    "5011025300": {"dong_name": "애월읍", "visit_prev_pct": -14.0, "visit_yoy_pct": -12.0, "rain_effect_pp": 1.5},
+    "5011066000": {"dong_name": "노형동", "visit_prev_pct": -1.0, "visit_yoy_pct": 0.5, "rain_effect_pp": 0.8},
+    "5011025000": {"dong_name": "한림읍", "visit_prev_pct": -18.0, "visit_yoy_pct": -2.0, "rain_effect_pp": 4.2},
+    "5011065000": {"dong_name": "연동", "visit_prev_pct": -6.0, "visit_yoy_pct": -7.0, "rain_effect_pp": 0.5}
   },
   "freshness": [
     {"dataset_no": 753, "name": "읍면동 단위 내국인 유동인구", "last_obs_date": "2026-11-08", "unit": "읍면동/일", "used": true, "reason": "일 갱신, 최근 관측 확인(가짜)"},

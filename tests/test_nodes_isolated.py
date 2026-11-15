@@ -26,7 +26,7 @@ def test_A_classify_deterministic():
 def test_B_extract_and_missing():
     st = B.parse_input({"question": "애월읍 카페, 예산 10만 원, 메뉴 바꿀 수 있어요", "trace": []})
     si = st["store_input"]
-    assert si["dong_code"] == "5011025000" and si["budget_krw"] == 100000 and "menu" in si["changeable"]
+    assert si["dong_code"] == "5011025300" and si["budget_krw"] == 100000 and "menu" in si["changeable"]
     assert set(st["missing_slots"]) == {"staff_am", "staff_pm"}
 
 
