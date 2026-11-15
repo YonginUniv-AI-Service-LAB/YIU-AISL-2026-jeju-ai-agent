@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 from ..config import MAX_RETRIES, MOCK_DIR, PROMPT_DIR, USE_LLM
 from ..contracts import Changeable, StoreInput
 from ..llm import client as llm
+from . import a_data as A
 from ..trace import log
 
 # ───────────────────────── 슬롯(조건) 정의
@@ -131,27 +132,57 @@ def ask_back(state):
     return {"ask_back": msg, "status": "need_input", "trace": log(state, "B.ask_back", ask=msg)}
 
 
-def review_experiment(state):
-    """2주 후 재방문: 직전 실험 기간(마지막 2주) vs 그 전 2주. 효과 불분명하면 '확인 불가'."""
-    prev = state.get("previous_experiment")
-    weeks = sorted(state["store_input"].get("weeks", []), key=lambda w: w["week_start"])
-    if not prev or len(weeks) < 4:
-        rv = {"catalog_id": prev and prev.get("catalog_id"), "verdict": "확인 불가", "reason": "비교할 실적 부족"}
-    else:
-        a = sum(w["orders"] for w in weeks[-2:]); b = sum(w["orders"] for w in weeks[-4:-2])
-        ch = round((a - b) / b * 100, 1) if b else 0.0
-        verdict = "개선 신호" if ch >= 5 else ("악화 신호" if ch <= -5 else "확인 불가")
-        rv = {"catalog_id": prev.get("catalog_id"), "orders_change_pct": ch, "verdict": verdict,
-              "reason": "단일 점포 전후 비교 — 효과를 확정하지 않음(날씨·휴일 차이 가능)"}
-    return {"experiment_review": rv, "trace": log(state, "B.review_experiment", **rv)}
+def _per_day(weeks: list[dict]) -> float | None:
+    """주문 수를 영업일로 나눈 값(휴무일 차이 보정). A의 my_orders_change_pct 와 같은 기준."""
+    days = sum(w["open_days"] for w in weeks)
+    return sum(w["orders"] for w in weeks) / days if days else None
 
+
+def _region_note(state) -> str | None:
+    """지역 지표 기준일 안내. 날짜는 고정값이 아니라 A의 data_freshness(No.753)에서 읽는다."""
+    for f in (state.get("analysis_result") or {}).get("data_freshness", []):
+        if f.get("dataset_no") == 753 and f.get("last_obs_date"):
+            return f"지역 지표는 기준일({f['last_obs_date']}) 고정 → 이번 점검은 점주 실적만으로 판단"
+    return None
+
+
+def review_experiment(state):
+    """2주 후 재방문: 실험 시작일(started_at) 기준으로 실험 전·후를 같은 주 수만큼 비교.
+
+    - 실험 후 = week_start >= started_at 인 주, 실험 전 = 그 직전 같은 개수의 주
+    - 주문 수는 영업일로 나눠 비교(휴무일 차이 보정), 변화율은 A의 pct_change 사용
+    - 단일 점포 전후 비교라 효과를 확정하지 않음 → '신호'로만 표현
+    """
+    prev = state.get("previous_experiment") or {}
+    weeks = sorted(state["store_input"].get("weeks", []), key=lambda w: str(w["week_start"]))
+    started = prev.get("started_at")
+    after = [w for w in weeks if started and str(w["week_start"]) >= started]
+    before = [w for w in weeks if started and str(w["week_start"]) < started][-len(after):] if after else []
+    rv = {"catalog_id": prev.get("catalog_id"), "started_at": started}
+
+    if not started:
+        rv.update(verdict="확인 불가", reason="실험 시작일 기록이 없음")
+    elif not after:
+        rv.update(verdict="확인 불가", reason="실험 시작 후 실적이 아직 없음")
+    elif len(before) < len(after) or _per_day(before) is None or _per_day(after) is None:
+        rv.update(verdict="확인 불가", reason="실험 전 비교할 실적이 부족함")
+    else:
+        ch = A.pct_change(_per_day(after), _per_day(before))
+        verdict = "개선 신호" if ch >= 5 else ("악화 신호" if ch <= -5 else "확인 불가")
+        rv.update(weeks_compared=len(after), orders_per_day_change_pct=ch, verdict=verdict,
+                  reason="단일 점포 전후 비교 — 효과를 확정하지 않음(날씨·휴일 차이 가능)")
+    if note := _region_note(state):
+        rv["region_note"] = note
+    return {"experiment_review": rv, "trace": log(state, "B.review_experiment", **rv)}
 
 # ── 라우터
 def route_after_parse(state):
-    if state["missing_slots"]:
-        return "ask_back"
-    return "review_experiment" if state.get("previous_experiment") else "check_fitness"
+    return "ask_back" if state["missing_slots"] else "check_fitness"
 
+
+def route_after_analyze(state):
+    """재방문이면 분석 뒤에 점검(지역 기준일을 data_freshness 에서 읽기 위해)."""
+    return "review_experiment" if state.get("previous_experiment") else "design_experiment"
 
 def route_after_verify(state):
     if state["verify_result"]["passed"]:

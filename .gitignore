@@ -219,6 +219,8 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
+# B 세션 저장 파일 (점주 정보 — 커밋 금지)
+data/sessions/
 # jeju-coach: 원본 데이터·스냅샷은 커밋하지 않음 (재배포 조건 확인 전)
 data/raw/
 data/snapshot/
