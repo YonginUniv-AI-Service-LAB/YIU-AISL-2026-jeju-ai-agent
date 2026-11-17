@@ -40,20 +40,28 @@ START → parse_input ─┬─(빠진 조건)→ ask_back → END
 - 재방문 점검은 단일 점포 전후 비교로, 효과를 확정하지 않습니다.
 - `drop_violations`는 섹션 문장만 제거합니다. 실험(experiment) 제약 위반은 설계 단계 필터로 사전 차단합니다.
 
-## A 실데이터 모드 (1차 통합 테스트)
-지역 지표를 실제 스냅샷(제주데이터허브 No.753·748 + 기상청 ASOS)에서 계산합니다. 실행 중에는 API를 부르지 않고 스냅샷만 읽습니다.
+## 재현 파이프라인 (A)
+지역 지표를 실제 스냅샷(제주데이터허브 No.753·748 + 기상청 ASOS)에서 계산합니다. **API는 `snapshot` 단계에서만** 부르고, 나머지는 스냅샷만 읽습니다.
+Windows 는 `python tasks.py <대상>`, make 가 있는 환경(Docker·Linux)은 `make <대상>` — 같은 동작입니다.
+
+| 대상 | 하는 일 | 네트워크 |
+|---|---|---|
+| `setup` | 의존성 설치 (`requirements.lock`: 정확한 버전 + 해시 검사) | 패키지 설치만 |
+| `lock` | `requirements.txt` 를 고친 뒤 `requirements.lock` 다시 만들기 (uv, Windows·Linux 공용) | 패키지 정보 조회 |
+| `snapshot --as-of 2026-08-31` | API → `data/raw/fetch/` → `data/snapshot/<AS_OF>/*.parquet` + `manifest.json` → 검증 | **사용(키 필요)** |
+| `validate` | 스냅샷 검증 게이트 6개(해시·스키마·날짜 연속성·시범 지역·외국인 0값·지연). FAIL 이면 종료 코드 1 | 없음 |
+| `test` | mock 테스트 + (스냅샷 있으면) 실데이터 통합 테스트 | 없음 |
+| `eval` | 평가 실행 (B·C 평가, A 평가는 S10에서 추가) | 없음 |
+| `demo` | 사람이 읽는 실데이터 시나리오 출력 | 없음 |
+| `reproduce` | validate → test → eval → demo. 앞 단계가 실패하면 멈춤 | **차단됨** |
 
 ```bash
-# 1) 스냅샷 준비 — 저장소에 없음(재배포 조건 확인 전). 둘 중 하나:
-#    (a) 팀에서 따로 받은 data/snapshot/2026-08-31/ 폴더를 그대로 넣기 (manifest.json 의 sha256 으로 자동 검사)
-#    (b) 직접 만들기: .env 에 JEJU_DATAHUB_KEY, DATA_GO_KR_API_KEY 입력 후
-python scripts/fetch_snapshot.py      # API 원본 → data/raw/fetch/ (서버가 불안정해 재시도 포함 약 10분)
-python scripts/build_snapshot.py      # → data/snapshot/2026-08-31/*.parquet + manifest.json (snapshot_id 출력)
-
-# 2) 실행 (PowerShell 은 $env:COACH_MOCK="0"; $env:COACH_LLM="0" 후 실행)
-COACH_MOCK=0 COACH_LLM=0 python -m pytest tests/test_integration_real.py -q
-COACH_MOCK=0 COACH_LLM=0 python scripts/run_real_scenario.py          # 사람이 읽는 출력
+# 스냅샷은 저장소에 없음(재배포 조건 확인 전). 팀에서 받은 data/snapshot/2026-08-31/ 폴더를 넣거나 직접 만들기:
+python tasks.py snapshot --as-of 2026-08-31   # .env 에 JEJU_DATAHUB_KEY, DATA_GO_KR_API_KEY 필요, 서버 불안정으로 약 10분
+python tasks.py reproduce                     # 약 15초, 네트워크 없이 전체 재현
 ```
+- 재현 단계는 `COACH_LLM=0`, `COACH_OFFLINE=1`(우리 API 함수가 호출 거부), 프록시를 닫힌 포트로 설정(다른 라이브러리의 접속도 실패)해서 실행합니다.
+- 기준일은 `--as-of`(또는 환경변수 `COACH_AS_OF`) 한 곳에서만 정하고, 비교 창·다운로드 기간은 자동 계산됩니다.
 - 기준일 2026-08-31(753·748 실제 마지막 관측일), 시범 시나리오 only_me·노형동. 결정 근거: 노션 A파트 「decisions」, 데이터 명세: 노션 A파트 「data_spec」
 - `COACH_MOCK=1`(기본)에서는 실데이터 테스트가 자동으로 건너뜁니다.
 - 읍면동 코드는 행정안전부 행정동코드(KIKmix 2026-07-01)로 교체됨: 애월읍 5011025300 · 노형동 5011066000 · 한림읍 5011025000 · 연동 5011065000
