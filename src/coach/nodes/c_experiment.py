@@ -163,6 +163,33 @@ def _template_sections(si: StoreInput, ar: AnalysisResult, note: str | None) -> 
     return {"observed": observed, "my_store": my_store, "hypotheses": hyp, "to_check": to_check}
 
 
+# ───────────────────────── 지원제도 연결 (decisions_C ④: 키워드·태그 매칭, 결정론)
+STATUS_KO = {"open": "접수 중", "always": "상시 신청", "planned": "추진 예정·공고 전", "closed": "올해 접수 마감·다음 공고 확인"}
+
+
+def _support_docs():
+    return json.loads((MOCK_DIR / "support_programs.json").read_text(encoding="utf-8"))
+
+
+def match_support(diag: str, si: StoreInput, exp_ids: list[str], k: int = 3) -> list[tuple[dict, int]]:
+    """진단이 맞는 문서 중 점수 순 최대 k개. 점수: 추천·대안 실험과 관련 +2, 바꿀 수 있는 항목과 겹침 +1, 지금 신청 가능 +1."""
+    can = {c.value for c in si.changeable}
+    scored = []
+    for d in _support_docs():
+        if diag not in d["fits"]:
+            continue
+        s = (2 if set(d["experiment_ids"]) & set(exp_ids) else 0) + (1 if set(d["changeable"]) & can else 0) \
+            + (1 if d["status"] in ("open", "always") else 0)
+        scored.append((d, s))
+    scored.sort(key=lambda x: (-x[1], x[0]["id"]))
+    return scored[:k]
+
+
+def support_sentence(d: dict) -> Sentence:
+    when = STATUS_KO[d["status"]] if d["period"] == "상시" else f"{STATUS_KO[d['status']]} · {d['period']}"
+    return Sentence(text=f"{d['title']}({d['org']}): {d['summary']} [{when}] 출처 {d['url']} ({d['checked']} 확인)")
+
+
 # ───────────────────────── LLM 다듬기 (decisions_C ③: 문장 수·순서·claim_id 는 코드가 고정)
 class PolishedSentences(BaseModel):
     sentences: list[str]
@@ -228,18 +255,19 @@ def compose_report(state):
         polish |= {"template": tmpl, "texts": texts}
     if state.get("debug_inject") == "banned_phrase" and state.get("retries", 0) == 0:
         secs["hypotheses"].append(Sentence(text="매출 감소의 원인은 주변 경쟁 때문입니다."))  # 검증 루프 테스트용 결함
-    progs = [p for p in json.loads((MOCK_DIR / "support_programs.json").read_text(encoding="utf-8"))
-             if ar.diagnosis.value in p["fits"]]
+    progs = match_support(ar.diagnosis.value, si, [e.catalog_id for e in exps])
     region_notice = ([Sentence(text="이번 답변은 동네 흐름만 알려 드리고, 내 가게 진단과 실험 추천은 하지 않았어요. "
                                     "그 이유는 아래 한계 항목에 적었어요.")] if note == "region_only" else [])
     rep = Report(
         mode=ar.mode, diagnosis=ar.diagnosis, **secs,
         experiment=exps[0] if exps else None, alternatives=exps[1:],
-        support_programs=[Sentence(text=f"{p['title']} ({p['url']})") for p in progs],
+        support_programs=[support_sentence(d) for d, _ in progs],
         limits=region_notice
                + [Sentence(text="유동인구는 읍면동 전체를 집계한 값이고, 우리 가게 한 곳의 실험 전후 비교만으로는 "
                                 "실험 효과를 확정할 수 없어요.")]
                + ([Sentence(text="실험의 예상 비용은 추정치예요. 점주님 상황에 맞게 조정해 주세요.")] if exps else [])
+               + ([Sentence(text="지원제도는 적힌 확인일 기준 정보라 조건·접수 기간이 바뀌었을 수 있어요. "
+                                 "신청 전에 해당 기관에 꼭 확인해 주세요.")] if progs else [])
                + [Sentence(text=note_sentence(n)) for n in ar.notes]
                + ([Sentence(text="이 결과는 시연용 합성(가짜) 점주 데이터로 만들었어요.")] if si.is_synthetic else []),
         sources=[f"No.{f.dataset_no} {f.name} (기준일 {f.last_obs_date})" for f in ar.data_freshness if f.used]
@@ -251,7 +279,8 @@ def compose_report(state):
     out["_design_note"] = note
     out["_polish"] = polish
     summary = {k: v for k, v in (polish or {}).items() if k not in ("template", "texts")} or None
-    return {"report": out, "trace": log(state, "C.compose_report", retry=state.get("retries", 0), polish=summary)}
+    return {"report": out, "trace": log(state, "C.compose_report", retry=state.get("retries", 0), polish=summary,
+                                        support={d["id"]: s for d, s in progs})}
 
 
 _NUM = re.compile(r"-?\d+(?:\.\d+)?(?=\s*%)")
@@ -317,6 +346,12 @@ def verify(state):
                         vals = ", ".join(str(e.value) for e in cited)
                         vio.append(Violation(type="number_mismatch", section=sec, sentence=s.text,
                                              reason=f"문장 속 {x}%가 인용한 근거 값({vals})과 다름"))
+    for s in rep.support_programs:  # 지원제도 문장은 출처 URL 이 근거 → 금지 표현과 출처 누락만 검사
+        for b in BANNED_PHRASES:
+            if b in s.text:
+                vio.append(Violation(type="banned_phrase", section="support_programs", sentence=s.text, reason=f"금지 표현 '{b}'"))
+        if "http" not in s.text:
+            vio.append(Violation(type="missing_evidence", section="support_programs", sentence=s.text, reason="출처 URL 없음"))
     vio += _constraint_violations(rep, ar, si)
     vr = VerifyResult(passed=not vio, violations=vio, checked_claims=checked)
     return {"verify_result": vr.model_dump(mode="json"),
@@ -327,7 +362,7 @@ def drop_violations(state):
     """재시도 한도 초과: 위반 문장 제거 + '확인 불가' 표기."""
     bad = {v["sentence"] for v in state["verify_result"]["violations"] if v["section"] != "experiment"}
     rep = dict(state["report"])
-    for sec in SECTIONS:
+    for sec in SECTIONS + ["support_programs"]:
         rep[sec] = [s for s in rep[sec] if s["text"] not in bad]
     bad_exp = {v["sentence"] for v in state["verify_result"]["violations"] if v["section"] == "experiment"}
     if bad_exp:  # 조건을 넘는 실험은 빼고, 남은 대안 중 첫 번째를 추천으로 올림
