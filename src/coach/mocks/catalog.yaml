@@ -1,50 +1,191 @@
-# ★C 행동 카탈로그 초안(15개까지 확장). 비용·인력은 예시값.
-# fits: 어떤 진단 유형에 적합한지 / requires: 변경 가능 항목 중 필요한 것
+# ★C 행동 카탈로그 (15개, 결정 기록: docs/decisions_C.md 2026-11-17 ①)
+# - 비용(cost_krw)은 카페 운영 상식선의 **추정치**이며 점주가 조정한다(출처 있는 실측값 아님).
+# - fits: 맞는 진단 유형(co_decline 동네 동반 하락 / only_me 나만 하락 / season_weather 계절·날씨)
+# - requires: 점주가 '바꿀 수 있다'고 고른 항목(menu·hours·price·channel) 중 이 실험에 필요한 것
+# - extra_staff: 새로 필요한 인원(점주 입력에 '채용 가능' 칸이 없어 0 인 항목만 추천)
+# - min_staff_am / min_staff_pm: 그 시간대에 이미 있어야 하는 최소 인원(B 가 받는 staff_am/pm 과 비교)
+# - measure_ease: 지표·중단 기준을 판단하는 데 필요한 기록 (decisions_C ②)
+#     3 = POS(주문·매출·메뉴별 판매)만으로 판단 / 2 = POS + 점주의 간단한 별도 기록(폐기·할인액·강수일 구분 등)
+#     1 = 지도앱·배달앱 통계 화면이나 손님 표본 기록이 필요
+# - X06·X15 는 예산 30만 원을 넘는 항목(예산이 큰 점주용 + 예산 필터 시험용)
+# 문구 규칙: CLAUDE.md §5 금지 해석(반경·매장 방문객·관광객·원인 단정 등)을 쓰지 않는다.
+
 - id: X01
   title: 평일 오후 테이크아웃 묶음(기존 메뉴 2종) 한정 판매
   fits: [co_decline, season_weather]
   requires: [menu, price]
   cost_krw: 50000
   extra_staff: 0
-  metric: 평일 14-17시 주문 수와 공헌이익(할인·재료비 반영)
-  stop_rule: 추가 공헌이익보다 할인·폐기 비용이 2주 연속 크면 중단
+  min_staff_am: 1
+  min_staff_pm: 1
+  measure_ease: 2
+  metric: 평일 14~17시 주문 수와 공헌이익(매출 − 재료비 − 할인액)
+  stop_rule: 첫 주 할인·폐기 비용이 늘어난 공헌이익보다 크면 2주차는 중단
+
 - id: X02
-  title: 비 오는 날 한정 배달앱 노출 쿠폰
+  title: 비 오는 날 한정 배달앱 쿠폰
   fits: [season_weather]
   requires: [channel]
   cost_krw: 100000
   extra_staff: 0
-  metric: 강수일 배달 주문 수(비강수일 대비)
-  stop_rule: 쿠폰 비용이 강수일 추가 공헌이익을 넘으면 중단
+  min_staff_am: 1
+  min_staff_pm: 1
+  measure_ease: 2
+  metric: 강수일 배달 주문 수(같은 기간 비강수일과 비교)
+  stop_rule: 쿠폰 비용이 강수일에 늘어난 공헌이익보다 크면 중단
+
 - id: X03
-  title: 대표 메뉴 1종 가격·구성 점검(동종 점포 메뉴판 3곳 비교)
+  title: 대표 메뉴 1종 가격·구성 점검(같은 동네 카페 메뉴판 3곳 비교 후 조정)
   fits: [only_me]
   requires: [menu, price]
   cost_krw: 0
   extra_staff: 0
+  min_staff_am: 1
+  min_staff_pm: 1
+  measure_ease: 3
   metric: 대표 메뉴 판매 비중과 객단가
-  stop_rule: 2주간 대표 메뉴 판매량이 변경 전보다 10% 이상 줄면 원복
+  stop_rule: 대표 메뉴 판매량이 변경 전 2주보다 10% 이상 줄면 원래대로 되돌림
+
 - id: X04
-  title: 지도앱·SNS 매장 정보(사진·영업시간) 정비 + 리뷰 응답
+  title: 지도앱·SNS 매장 정보(사진·영업시간·메뉴) 정비와 리뷰 답글
   fits: [only_me, co_decline]
   requires: [channel]
   cost_krw: 0
   extra_staff: 0
-  metric: 지도앱 길찾기·전화 클릭 수, 신규 고객 비율(영수증 표본)
-  stop_rule: 해당 없음(비용 0) — 2주 후 지표만 기록
+  min_staff_am: 1
+  min_staff_pm: 1
+  measure_ease: 1
+  metric: 지도앱 길찾기·전화 클릭 수, 영수증 표본으로 본 처음 온 손님 비율
+  stop_rule: 비용이 들지 않아 중단 대신, 2주 뒤 클릭 수가 직전 2주보다 늘지 않으면 다른 실험으로 바꿈
+
 - id: X05
-  title: 오전 오픈 시간 1시간 단축 후 오후 집중
-  fits: [co_decline]
+  title: 오전 오픈을 1시간 늦추고 오후에 집중
+  fits: [co_decline, season_weather]
   requires: [hours]
   cost_krw: 0
   extra_staff: 0
-  metric: 시간당 공헌이익
-  stop_rule: 총 공헌이익이 변경 전 2주 대비 5% 이상 줄면 원복
+  min_staff_am: 1
+  min_staff_pm: 1
+  measure_ease: 2
+  metric: 영업시간당 공헌이익과 하루 총 공헌이익
+  stop_rule: 하루 총 공헌이익이 변경 전 2주보다 5% 이상 줄면 원래 시간으로 되돌림
+
 - id: X06
   title: 주말 브런치 세트 신규 도입
   fits: [co_decline]
   requires: [menu]
   cost_krw: 400000
   extra_staff: 1
-  metric: 주말 오전 매출
-  stop_rule: 재료 폐기율 15% 초과 시 중단
+  min_staff_am: 2
+  min_staff_pm: 1
+  measure_ease: 2
+  metric: 주말 오전 매출과 브런치 재료 폐기액
+  stop_rule: 브런치 재료 폐기율이 15%를 넘으면 중단
+
+- id: X07
+  title: 스탬프 적립 카드(10잔 적립 시 1잔 제공)
+  fits: [co_decline, only_me]
+  requires: [price]
+  cost_krw: 30000
+  extra_staff: 0
+  min_staff_am: 1
+  min_staff_pm: 1
+  measure_ease: 2
+  metric: 2주 안에 2번 이상 온 적립 손님 수와 전체 주문 수
+  stop_rule: 무료 제공 음료 원가가 늘어난 공헌이익보다 크면 신규 발급을 멈춤
+
+- id: X08
+  title: 판매량 하위 메뉴 2종 일시 중단(재료 종류 줄이기)
+  fits: [co_decline, season_weather]
+  requires: [menu]
+  cost_krw: 0
+  extra_staff: 0
+  min_staff_am: 1
+  min_staff_pm: 1
+  measure_ease: 2
+  metric: 재료 폐기액과 전체 주문 수
+  stop_rule: 전체 주문 수가 변경 전 2주보다 5% 이상 줄면 메뉴를 되살림
+
+- id: X09
+  title: 주변 사업장 대상 평일 오전 단체 주문 안내(전단 50장)
+  fits: [co_decline]
+  requires: [channel]
+  cost_krw: 30000
+  extra_staff: 0
+  min_staff_am: 2
+  min_staff_pm: 1
+  measure_ease: 2
+  metric: 단체 주문 건수와 단체 주문 공헌이익
+  stop_rule: 첫 주 단체 주문이 0건이면 전단 추가 배포를 멈춤
+
+- id: X10
+  title: 사진 메뉴판으로 교체(디저트 함께 주문 유도)
+  fits: [only_me]
+  requires: [menu]
+  cost_krw: 30000
+  extra_staff: 0
+  min_staff_am: 1
+  min_staff_pm: 1
+  measure_ease: 3
+  metric: 객단가와 음료·디저트 함께 주문 비율
+  stop_rule: 객단가가 변경 전 2주보다 낮아지면 기존 메뉴판으로 되돌림
+
+- id: X11
+  title: 배달앱 메뉴 사진·설명 정비(이미 입점한 경우)
+  fits: [only_me, season_weather]
+  requires: [channel]
+  cost_krw: 0
+  extra_staff: 0
+  min_staff_am: 1
+  min_staff_pm: 1
+  measure_ease: 1
+  metric: 배달 주문 수와 배달앱 가게 조회 수
+  stop_rule: 비용이 들지 않아 중단 대신, 2주 뒤 배달 주문이 늘지 않으면 기록만 남기고 다른 실험으로 바꿈
+
+- id: X12
+  title: 디저트 1종 + 음료 세트(기존 디저트 활용)
+  fits: [only_me, co_decline]
+  requires: [menu, price]
+  cost_krw: 60000
+  extra_staff: 0
+  min_staff_am: 1
+  min_staff_pm: 1
+  measure_ease: 2
+  metric: 객단가, 세트 판매 수, 디저트 폐기 수
+  stop_rule: 디저트 폐기율이 30%를 넘거나 세트 공헌이익이 단품 합보다 낮으면 중단
+
+- id: X13
+  title: 계절 한정 음료 1종(기존 재료 조합)
+  fits: [season_weather]
+  requires: [menu]
+  cost_krw: 30000
+  extra_staff: 0
+  min_staff_am: 1
+  min_staff_pm: 1
+  measure_ease: 2
+  metric: 한정 음료 하루 판매 잔 수와 전체 주문 수
+  stop_rule: 하루 평균 3잔 미만이거나 한정 재료 폐기가 주 1만 원을 넘으면 중단
+
+- id: X14
+  title: 비 오는 날 매장 이용 손님 소액 할인
+  fits: [season_weather]
+  requires: [price]
+  cost_krw: 50000
+  extra_staff: 0
+  min_staff_am: 1
+  min_staff_pm: 1
+  measure_ease: 2
+  metric: 강수일 매장 주문 수(같은 기간 비강수일과 비교)
+  stop_rule: 할인 총액이 강수일에 늘어난 공헌이익보다 크면 중단
+
+- id: X15
+  title: 계절 좌석 보강(방풍 커튼·난방 또는 냉방 용품)
+  fits: [season_weather]
+  requires: []
+  cost_krw: 350000
+  extra_staff: 0
+  min_staff_am: 1
+  min_staff_pm: 1
+  measure_ease: 1
+  metric: 날씨가 궂은 날 매장 이용 주문 수와 평균 머무는 시간(표본 기록)
+  stop_rule: 구입 비용이 크므로 2주 동안 궂은 날 매장 주문이 늘지 않으면 추가 구입을 멈춤
