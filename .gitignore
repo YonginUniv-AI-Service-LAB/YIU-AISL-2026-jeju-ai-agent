@@ -232,3 +232,6 @@ docs/
 .vscode/
 
 eval/last_result.json
+
+# A 라이브 모드 캐시·조회 데이터 (재배포 조건 확인 전)
+data/live/

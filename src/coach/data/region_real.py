@@ -220,6 +220,7 @@ def build_region(dong_codes: dict[str, str], as_of: date = AS_OF, root: Path = S
     ]
     return {
         "snapshot_id": snap["manifest"]["snapshot_id"],
+        "as_of": str(as_of),
         "window": {k: w.label() for k, w in ws.items()},
         "dongs": dongs,
         "freshness": freshness,
