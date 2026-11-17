@@ -99,6 +99,7 @@ def judge(store_input: dict, question: str, region: dict, as_of: date | None = N
     # F4 판정 불가: 지역 지표가 없으면 동네 흐름도 줄 수 없다
     if dong is None:
         f.has_region = False
+        f.store_compare = False   # 비교할 동네 지표가 없으면 내 가게 비교도 안 함(지표·근거 E04 짝 유지 — S10 평가에서 발견)
         f.add("F4", UNABLE, f"{name or '읍면동 미지정'}: 해당 읍면동 스냅샷 없음(시범 지역: {pilot}) → 지역 지표로 진단할 수 없음")
 
     # F2 범위 축소: 카페가 아닌 업종
