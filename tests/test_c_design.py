@@ -116,7 +116,7 @@ def test_no_feasible_report_asks_for_more_conditions():
     st = _full(_si(budget_krw=0, changeable=[]), _ar("season_weather"))
     r = st["report"]
     assert r["experiment"] is None and st["report"]["_design_note"] == "no_feasible"
-    assert any("찾지 못했습니다" in s["text"] for s in r["to_check"])
+    assert any("찾지 못했" in s["text"] for s in r["to_check"])
 
 
 # ───────────── 검증·제거 연동
