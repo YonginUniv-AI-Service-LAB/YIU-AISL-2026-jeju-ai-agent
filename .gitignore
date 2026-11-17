@@ -230,3 +230,5 @@ CLAUDE.md
 DATA_INTAKE.md
 docs/
 .vscode/
+
+eval/last_result.json
