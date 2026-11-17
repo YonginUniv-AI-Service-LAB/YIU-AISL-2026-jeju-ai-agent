@@ -110,13 +110,8 @@ def check_foreign_gaps(fo: pd.DataFrame, ws: dict[str, R.Window], dongs: list[st
     n_nat = fo["nationality"].nunique()
     worst, bad = 0.0, []
     for emd in dongs:
-        sub = fo[fo["emd"] == emd]
         for k, w in ws.items():
-            days = set(w.days())
-            part = sub[sub["base_date"].isin(days)]
-            expected = len(days) * n_nat
-            gap = (expected - len(part)) + int((part["visit_pop"] == 0).sum())
-            ratio = gap / expected if expected else 1.0
+            ratio = R.foreign_gap_ratio(fo, emd, w, n_nat)     # 적합성 판정(F6)과 같은 함수
             worst = max(worst, ratio)
             if ratio > max_ratio:
                 bad.append(f"{emd} {k} {ratio:.1%}")

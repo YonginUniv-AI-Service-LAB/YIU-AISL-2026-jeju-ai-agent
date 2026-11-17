@@ -18,6 +18,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 import pandas as pd
+from .fitness import FOREIGN_GAP_MAX_RATIO, LAG_WARN_DAYS  # noqa: F401  (기준값은 fitness.py 한 곳, decisions ①-2·①-3)
 
 ROOT = Path(__file__).resolve().parents[3]
 SNAPSHOT_ROOT = ROOT / "data" / "snapshot"
@@ -36,8 +37,6 @@ WEEKS = 6
 YOY_SHIFT_DAYS = 364                 # 52주 전 → 요일 구성 동일
 RAIN_MM = 1.0                        # 강수일 기준
 MAX_MISSING_RATIO = 0.10             # 창 안 결측 허용 비율 (42일 → 4일) — validate 실패 기준과 동일
-FOREIGN_GAP_MAX_RATIO = 0.10         # 748 빠진 행 + 0값 비율 허용치 — 넘으면 경고(decisions ①-2)
-LAG_WARN_DAYS = 7                    # last_obs_date 가 AS_OF 보다 이만큼 넘게 이르면 경고(decisions ①-3)
 STATION_OF = {"애월읍": "184", "노형동": "184", "연동": "184", "한림읍": "185"}  # 가장 가까운 ASOS 관측소
 
 # S1 조사로 확인한 사실(스냅샷에 들어가지 않는 데이터셋). 조사일 2026-11-14, 노션 A파트 data_spec
@@ -160,6 +159,17 @@ def rain_effect_pp(daily: pd.Series, rainy: set[date], recent: Window, prev: Win
 
 
 # ── 읍면동 1곳 지표
+def foreign_gap_ratio(fo: pd.DataFrame, emd: str, w: Window, n_nat: int | None = None) -> float:
+    """748: (빠진 행 + visit_pop=0 행) / (일수 × 국적 수). 소수값 비공개 가능성 → 높으면 외국인 지표 신뢰 낮음.
+    validate(검사 5)와 적합성 판정(F6)이 같은 이 함수를 쓴다."""
+    n_nat = n_nat or fo["nationality"].nunique()
+    days = set(w.days())
+    part = fo[(fo["emd"] == emd) & fo["base_date"].isin(days)]
+    expected = len(days) * n_nat
+    gap = (expected - len(part)) + int((part["visit_pop"] == 0).sum())
+    return round(gap / expected, 4) if expected else 1.0
+
+
 def dong_metrics(snap: dict, emd: str, ws: dict[str, Window] | None = None) -> dict:
     ws = ws or windows()
     dom = daily_total(snap["domestic"], emd, "visit_pop", ["gender", "age_group"])
@@ -167,6 +177,7 @@ def dong_metrics(snap: dict, emd: str, ws: dict[str, Window] | None = None) -> d
     m_dom = {k: window_mean(dom, w) for k, w in ws.items()}
     m_fo = {k: window_mean(fo, w) for k, w in ws.items()}
     missing = {k: v[1] for k, v in m_dom.items()}
+    fo_gap = max(foreign_gap_ratio(snap["foreign"], emd, w) for w in ws.values())
     stn = STATION_OF[emd]
     return {
         "dong_name": emd,
@@ -177,6 +188,7 @@ def dong_metrics(snap: dict, emd: str, ws: dict[str, Window] | None = None) -> d
         "visit_for_yoy_pct": pct_change(m_fo["recent"][0], m_fo["yoy"][0]),
         "_quality": {"station": stn, "missing_ratio": missing,
                      "missing_ratio_foreign": {k: v[1] for k, v in m_fo.items()},
+                     "foreign_gap_ratio": fo_gap,          # 세 창 중 최댓값 → F6 판정에 사용
                      "fit": max(missing.values()) <= MAX_MISSING_RATIO},
     }
 
