@@ -75,6 +75,13 @@ def classify(my: float | None, visit_prev: float, visit_yoy: float, rain_pp: flo
     return Diagnosis.undetermined, "약"
 
 
+def reachable_diagnoses(visit_prev: float, visit_yoy: float, rain_pp: float) -> set[str]:
+    """이 동네·기준일의 지역 숫자에서 '가게 주문 변화가 어떤 값이든' 나올 수 있는 진단 유형.
+    평가용(S9): 기대 진단이 여기 없으면 그 사례는 실데이터로 '평가 불가'(가게 결과는 보지 않음 → 정답 누수 없음).
+    내 주문 변화 −100%~+100%를 0.1%p 간격으로 대입한다(classify 는 구간 비교라 이 간격이면 충분)."""
+    return {classify(x / 10, visit_prev, visit_yoy, rain_pp)[0].value for x in range(-1000, 1001)}
+
+
 def recompute(metric: str, store_input: dict) -> float | None:
     """검증용 재계산 진입점(C가 호출)."""
     if metric == "my_orders_change_pct":

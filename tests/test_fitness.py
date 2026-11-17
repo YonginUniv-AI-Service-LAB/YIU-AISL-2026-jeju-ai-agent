@@ -133,3 +133,11 @@ def test_graph_E04_period_is_store_dates():
     e04 = next(e for e in out["analysis_result"]["evidence"] if e["claim_id"] == "E04")
     assert e04["period"] == "2026-09-28~2026-11-08 vs 2026-08-17~2026-09-27"   # 동네 창 라벨이 아니라 가게 실제 기간
     assert out["analysis_result"]["diagnosis"] == "only_me" and out["verify_result"]["passed"]
+
+
+# ── S9: 평가 가능 여부(지역 숫자만으로 그 진단이 나올 수 있는가) — 가게 결과는 보지 않는다
+def test_reachable_diagnoses_depends_only_on_region():
+    from coach.nodes.a_data import reachable_diagnoses
+    assert reachable_diagnoses(-14.0, -12.0, 1.5) == {"co_decline", "undetermined"}  # 동네 감소 → 동반 하락(나만 하락은 불가)
+    assert "season_weather" in reachable_diagnoses(-18.0, -2.0, 4.2)                # 직전 급감·전년 유지 → 계절 가능
+    assert reachable_diagnoses(41.1, -4.7, -0.6) == {"only_me", "undetermined"}       # 성수기(실데이터 애월) → 둘만
