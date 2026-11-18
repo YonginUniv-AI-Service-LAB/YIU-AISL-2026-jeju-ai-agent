@@ -12,22 +12,31 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from dataclasses import dataclass
 from datetime import date, timedelta
 from pathlib import Path
 
 import pandas as pd
+from .fitness import FOREIGN_GAP_MAX_RATIO, LAG_WARN_DAYS  # noqa: F401  (기준값은 fitness.py 한 곳, decisions ①-2·①-3)
 
 ROOT = Path(__file__).resolve().parents[3]
 SNAPSHOT_ROOT = ROOT / "data" / "snapshot"
 
+
+def last_sunday(d: date) -> date:
+    """d 가 일요일이면 d, 아니면 그 직전 일요일(창을 월~일 주 단위로 맞추기 위함)."""
+    return d - timedelta(days=(d.weekday() + 1) % 7)
+
+
 # ── 실제 모드 설정(★A, 노션 decisions 와 같이 고칠 것)
-AS_OF = date(2026, 8, 31)            # 753·748 실제 마지막 관측일
-RECENT_END = date(2026, 8, 30)       # 최근 창 끝(일요일) → 6주 = 월~일 × 6
+# 기준일은 코드에 흩어 두지 않고 여기 한 곳에서만 정한다. 바꾸려면 환경변수 COACH_AS_OF=YYYY-MM-DD
+AS_OF = date.fromisoformat(os.getenv("COACH_AS_OF", "2026-08-31"))   # 기본: 753·748 실제 마지막 관측일
+RECENT_END = last_sunday(AS_OF)      # 최근 창 끝(일요일) → 6주 = 월~일 × 6  (2026-08-31 → 2026-08-30)
 WEEKS = 6
 YOY_SHIFT_DAYS = 364                 # 52주 전 → 요일 구성 동일
 RAIN_MM = 1.0                        # 강수일 기준
-MAX_MISSING_RATIO = 0.10             # 창 안 결측 허용 비율
+MAX_MISSING_RATIO = 0.10             # 창 안 결측 허용 비율 (42일 → 4일) — validate 실패 기준과 동일
 STATION_OF = {"애월읍": "184", "노형동": "184", "연동": "184", "한림읍": "185"}  # 가장 가까운 ASOS 관측소
 
 # S1 조사로 확인한 사실(스냅샷에 들어가지 않는 데이터셋). 조사일 2026-11-14, 노션 A파트 data_spec
@@ -60,20 +69,37 @@ def windows(recent_end: date = RECENT_END, weeks: int = WEEKS, yoy_shift: int = 
 
 
 # ── 스냅샷 읽기(+무결성 검사)
+def snapshot_id_of(files: dict) -> str:
+    """manifest 의 files{이름: {sha256}} → snapshot_id (build_snapshot.py 와 같은 규칙)."""
+    joined = "\n".join(f"{n}:{files[n]['sha256']}" for n in sorted(files))
+    return hashlib.sha256(joined.encode()).hexdigest()[:12]
+
+
+def manifest_errors(d: Path) -> tuple[dict, list[str]]:
+    """스냅샷 폴더의 manifest 와 실제 파일을 대조. (manifest, 문제 목록) — 문제 없으면 빈 목록."""
+    mpath = d / "manifest.json"
+    if not mpath.exists():
+        raise FileNotFoundError(f"스냅샷 없음: {d} → python tasks.py snapshot --as-of {d.name} 실행 필요"
+                                f" (scripts/fetch_snapshot.py → scripts/build_snapshot.py)")
+    man = json.loads(mpath.read_text(encoding="utf-8"))
+    errs = []
+    for name, meta in man["files"].items():
+        p = d / name
+        if not p.exists():
+            errs.append(f"{name}: 파일 없음")
+        elif hashlib.sha256(p.read_bytes()).hexdigest() != meta["sha256"]:
+            errs.append(f"{name}: 스냅샷 파일이 manifest 와 다름(sha256 불일치)")
+    if snapshot_id_of(man["files"]) != man["snapshot_id"]:
+        errs.append("snapshot_id 가 파일 해시와 맞지 않음")
+    return man, errs
+
+
 def load_snapshot(as_of: date = AS_OF, root: Path = SNAPSHOT_ROOT) -> dict:
     """manifest.json 의 sha256 과 실제 파일을 대조한 뒤 DataFrame 으로 읽는다. 다르면 ValueError."""
     d = root / str(as_of)
-    mpath = d / "manifest.json"
-    if not mpath.exists():
-        raise FileNotFoundError(f"스냅샷 없음: {d} → scripts/fetch_snapshot.py, scripts/build_snapshot.py 실행 필요")
-    man = json.loads(mpath.read_text(encoding="utf-8"))
-    for name, meta in man["files"].items():
-        h = hashlib.sha256((d / name).read_bytes()).hexdigest()
-        if h != meta["sha256"]:
-            raise ValueError(f"스냅샷 파일이 manifest 와 다름: {name}")
-    joined = "\n".join(f"{n}:{man['files'][n]['sha256']}" for n in sorted(man["files"]))
-    if hashlib.sha256(joined.encode()).hexdigest()[:12] != man["snapshot_id"]:
-        raise ValueError("snapshot_id 가 파일 해시와 맞지 않음")
+    man, errs = manifest_errors(d)
+    if errs:
+        raise ValueError("; ".join(errs))
     return {"manifest": man,
             "domestic": pd.read_parquet(d / "domestic_753.parquet"),
             "foreign": pd.read_parquet(d / "foreign_748.parquet"),
@@ -133,6 +159,17 @@ def rain_effect_pp(daily: pd.Series, rainy: set[date], recent: Window, prev: Win
 
 
 # ── 읍면동 1곳 지표
+def foreign_gap_ratio(fo: pd.DataFrame, emd: str, w: Window, n_nat: int | None = None) -> float:
+    """748: (빠진 행 + visit_pop=0 행) / (일수 × 국적 수). 소수값 비공개 가능성 → 높으면 외국인 지표 신뢰 낮음.
+    validate(검사 5)와 적합성 판정(F6)이 같은 이 함수를 쓴다."""
+    n_nat = n_nat or fo["nationality"].nunique()
+    days = set(w.days())
+    part = fo[(fo["emd"] == emd) & fo["base_date"].isin(days)]
+    expected = len(days) * n_nat
+    gap = (expected - len(part)) + int((part["visit_pop"] == 0).sum())
+    return round(gap / expected, 4) if expected else 1.0
+
+
 def dong_metrics(snap: dict, emd: str, ws: dict[str, Window] | None = None) -> dict:
     ws = ws or windows()
     dom = daily_total(snap["domestic"], emd, "visit_pop", ["gender", "age_group"])
@@ -140,6 +177,7 @@ def dong_metrics(snap: dict, emd: str, ws: dict[str, Window] | None = None) -> d
     m_dom = {k: window_mean(dom, w) for k, w in ws.items()}
     m_fo = {k: window_mean(fo, w) for k, w in ws.items()}
     missing = {k: v[1] for k, v in m_dom.items()}
+    fo_gap = max(foreign_gap_ratio(snap["foreign"], emd, w) for w in ws.values())
     stn = STATION_OF[emd]
     return {
         "dong_name": emd,
@@ -150,6 +188,7 @@ def dong_metrics(snap: dict, emd: str, ws: dict[str, Window] | None = None) -> d
         "visit_for_yoy_pct": pct_change(m_fo["recent"][0], m_fo["yoy"][0]),
         "_quality": {"station": stn, "missing_ratio": missing,
                      "missing_ratio_foreign": {k: v[1] for k, v in m_fo.items()},
+                     "foreign_gap_ratio": fo_gap,          # 세 창 중 최댓값 → F6 판정에 사용
                      "fit": max(missing.values()) <= MAX_MISSING_RATIO},
     }
 
@@ -181,6 +220,7 @@ def build_region(dong_codes: dict[str, str], as_of: date = AS_OF, root: Path = S
     ]
     return {
         "snapshot_id": snap["manifest"]["snapshot_id"],
+        "as_of": str(as_of),
         "window": {k: w.label() for k, w in ws.items()},
         "dongs": dongs,
         "freshness": freshness,
