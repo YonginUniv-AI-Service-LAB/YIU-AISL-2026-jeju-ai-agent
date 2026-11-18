@@ -127,6 +127,16 @@ def _judge(state) -> FIT.Fitness:
     return FIT.judge(state["store_input"], state.get("question", ""), reg, as_of)
 
 
+def _region_source(reg: dict) -> str:
+    """trace 표시용 지역 데이터 출처. 라이브 조회가 실패해 스냅샷으로 대체됐으면 그렇게 표시(#10 리뷰)."""
+    if USE_MOCK:
+        return "mock"
+    live = reg.get("live") or {}
+    if live.get("fallback"):
+        return "snapshot_fallback"
+    return "live" if live else "snapshot"
+
+
 def check_fitness(state):
     """데이터 적합성 판정(F1~F7) → 적합 / 범위 축소 / 판정 불가 + 모드 + 사유. 규칙: src/coach/data/fitness.py"""
     StoreInput.model_validate(state["store_input"])
@@ -137,7 +147,7 @@ def check_fitness(state):
     partial = {"mode": fit.mode, "data_freshness": [f.model_dump(mode="json") for f in fresh], "notes": notes}
     return {"analysis_result": partial,
             "trace": log(state, "A.check_fitness", fitness=fit.verdict, cases=fit.cases, details=fit.details, mode=fit.mode, notes=notes,
-                         region_source=("mock" if USE_MOCK else "live" if reg.get("live") else "snapshot"),
+                         region_source=_region_source(reg),
                          snapshot_id=reg.get("snapshot_id"), live=reg.get("live"))}
 
 
