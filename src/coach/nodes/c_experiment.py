@@ -268,6 +268,10 @@ def compose_report(state):
         polish |= {"template": tmpl, "texts": texts}
     if state.get("debug_inject") == "banned_phrase" and state.get("retries", 0) == 0:
         secs["hypotheses"].append(Sentence(text="매출 감소의 원인은 주변 경쟁 때문입니다."))  # 검증 루프 테스트용 결함
+    if state.get("debug_inject") == "number_tamper" and state.get("retries", 0) == 0 and secs["observed"]:
+        s0 = secs["observed"][0]  # 평가 C05용 결함: 근거 번호는 그대로, 문장 숫자만 +10
+        secs["observed"][0] = Sentence(text=re.sub(r"\d+\.\d", lambda m: f"{float(m.group()) + 10:.1f}", s0.text, count=1),
+                                       claim_ids=s0.claim_ids)
     progs = match_support(ar.diagnosis.value, si, [e.catalog_id for e in exps])
     region_notice = ([Sentence(text="이번 답변은 동네 흐름만 알려 드리고, 내 가게 진단과 실험 추천은 하지 않았어요. "
                                     "그 이유는 아래 한계 항목에 적었어요.")] if note == "region_only" else [])
@@ -375,7 +379,8 @@ def verify(state):
     vio += _constraint_violations(rep, ar, si)
     vr = VerifyResult(passed=not vio, violations=vio, checked_claims=checked)
     return {"verify_result": vr.model_dump(mode="json"),
-            "trace": log(state, "C.verify", passed=vr.passed, n_violations=len(vio), checked=checked)}
+            "trace": log(state, "C.verify", passed=vr.passed, n_violations=len(vio), checked=checked,
+                         types=sorted({v.type.value for v in vio}))}
 
 
 def drop_violations(state):
