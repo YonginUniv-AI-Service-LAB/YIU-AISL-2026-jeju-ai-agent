@@ -8,6 +8,7 @@
     python tasks.py eval [--official]           평가 실행 + 실행 기록(평소 eval/runs/local/, --official 이면 eval/runs/)
     python tasks.py demo                        사람이 읽는 실데이터 시나리오 출력 (스냅샷)
     python tasks.py live [--shift-weeks -9]     라이브 모드: 점주 기록 시기에 맞춰 API로 동네 흐름 조회 (네트워크·키 필요)
+    python tasks.py app                         점주용 화면(Streamlit, http://localhost:8501)
     python tasks.py reproduce                   validate → test → eval → demo, 네트워크 없이
 
 Makefile 의 같은 이름 대상은 모두 이 파일을 부른다(Docker·Linux 용 껍데기).
@@ -107,6 +108,13 @@ def live(a):
        COACH_MOCK="0", COACH_LIVE="1", COACH_LLM="0")
 
 
+def app(a):
+    """점주용 화면(Streamlit). 기본은 스냅샷 모드(COACH_LIVE=0). Docker 에서는 -p 8501:8501 로 열기."""
+    sh("app 점주용 화면 → http://localhost:8501", [PY, "-m", "streamlit", "run", "app/streamlit_app.py",
+       "--server.address=0.0.0.0", "--server.port=8501", "--server.headless=true", "--browser.gatherUsageStats=false"],
+       COACH_MOCK=os.getenv("COACH_MOCK", "0"), COACH_LLM=os.getenv("COACH_LLM", "0"), COACH_LIVE=os.getenv("COACH_LIVE", "0"))
+
+
 def reproduce(a):
     t0 = time.perf_counter()
     for step in (validate, test, eval_, demo):
@@ -115,7 +123,7 @@ def reproduce(a):
 
 
 TARGETS = {"setup": setup, "lock": lock, "snapshot": snapshot, "validate": validate, "test": test, "eval": eval_,
-           "demo": demo, "live": live, "reproduce": reproduce}
+           "demo": demo, "live": live, "app": app, "reproduce": reproduce}
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
