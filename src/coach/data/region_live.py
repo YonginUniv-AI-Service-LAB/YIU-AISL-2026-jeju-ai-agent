@@ -160,7 +160,10 @@ def region_for(store_input: dict, dong_codes: dict[str, str], snapshot_region: C
     except Exception as e:  # 서버 오류·키 없음·오프라인·응답 형식 이상 모두 → 스냅샷 대체
         reg = dict(snapshot_region())       # 캐시된 dict 를 직접 고치지 않게 복사
         reason = str(e).split("|")[0][:120]
-        reg["excluded"] = list(reg.get("excluded", [])) + [
-            f"[범위 축소] 실시간 동네 데이터 조회 실패({type(e).__name__}: {reason}) → 기준일 {reg.get('as_of')} 스냅샷으로 분석"]
+        if reg.get("dongs"):
+            note = f"[범위 축소] 실시간 동네 데이터 조회 실패({type(e).__name__}: {reason}) → 기준일 {reg.get('as_of')} 스냅샷으로 분석"
+        else:   # 스냅샷도 없으면 멈추지 않고 지역 지표 없이 답한다(F4 판정 불가)
+            note = f"[판정 불가] 실시간 동네 데이터 조회 실패({type(e).__name__}: {reason})"
+        reg["excluded"] = list(reg.get("excluded", [])) + [note]
         reg["live"] = {"target": str(target), "fallback": True}
         return reg

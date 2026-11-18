@@ -26,10 +26,22 @@ def dong_codes() -> dict[str, str]:
     return {k: v for k, v in d.items() if not k.startswith("_")}
 
 
+def _no_region(reason: str) -> dict:
+    """지역 데이터를 쓸 수 없을 때도 멈추지 않도록 같은 모양의 빈 지역 dict(→ F4 판정 불가 + 준비 방법 안내)."""
+    return {"snapshot_id": "none", "window": {"recent": "", "prev": "", "yoy": ""}, "dongs": {}, "freshness": [],
+            "as_of": None, "excluded": [f"[판정 불가] {reason}"]}
+
+
 @lru_cache(maxsize=1)
 def _real_region() -> dict:
     from ..data.region_real import build_region  # pandas 는 실제 모드에서만 불러옴
-    return build_region(dong_codes())
+    try:
+        return build_region(dong_codes())
+    except FileNotFoundError:   # 스냅샷 폴더가 없음(제출물에 없거나 아직 안 만듦)
+        return _no_region("기준일 지역 데이터(스냅샷)가 없어 지역 지표로 진단할 수 없음 → 준비 방법은 "
+                          "실행 매뉴얼 참고(스냅샷 폴더 넣기 또는 데이터 키로 라이브 모드)")
+    except ValueError:          # manifest 해시 불일치(변조·손상)
+        return _no_region("기준일 지역 데이터(스냅샷)가 원본과 달라(해시 불일치) 쓰지 않음 → 스냅샷을 다시 받아 주세요")
 
 
 USE_LIVE = os.getenv("COACH_LIVE", "0") == "1"   # ★A 라이브 모드 스위치(COACH_MOCK=0 일 때만 의미)
