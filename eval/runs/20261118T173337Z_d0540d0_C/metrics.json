@@ -1,0 +1,30 @@
+{
+  "c_cases_n": 5,
+  "c_cases_pass_rate": 1.0,
+  "c_reports_n": 11,
+  "c_numeric_sentences_n": 30,
+  "c_unsupported_sentence_rate": 0.0,
+  "c_experiments_n": 10,
+  "c_constraint_violation_rate": 0.0,
+  "c_regen_n": 1,
+  "c_regen_improved_rate": 1.0,
+  "c_regen_resolved_rate": 1.0,
+  "a_reports_n": 6,
+  "a_reports_skipped": [
+    "A07"
+  ],
+  "note": "합성 사례 기준. 실제 점주 대상 지표 아님",
+  "node_table": {
+    "A": {
+      "run": "20261118T172946Z_3465d96-dirty_A",
+      "eval_fitness_accuracy": 1.0,
+      "eval_diagnosis_accuracy": 1.0,
+      "eval_mode_accuracy": 1.0,
+      "eval_n": 6
+    },
+    "B": [
+      "항목 정확도  17/18 (94%)",
+      "되묻기 정확도 5/5 (100%)"
+    ]
+  }
+}
