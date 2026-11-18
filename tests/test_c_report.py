@@ -123,6 +123,27 @@ def test_persistent_violation_falls_back_to_template(fake_llm):
     assert out["report"]["observed"][0]["text"] == TEMPLATE["observed"][0]["text"]
 
 
+def test_keep_phrases_rules():
+    k = C.keep_phrases("동네 흐름과 견주어 보면 '나만 하락형'에 가깝습니다(근거 강도: 중).")
+    assert "나만 하락형" in k and "근거 강도: 중" in k
+    assert {"읍면동 전체"} <= set(C.keep_phrases("읍면동 전체를 집계한 숫자라서 우리 가게에 온 손님 수와는 달라요."))
+    assert "줄이는 쪽" in C.keep_phrases("비 온 날 수의 변화가 방문을 줄이는 쪽으로 작용한 폭은 약 1.5%p로 추정돼요.")
+
+
+def test_meaning_loss_is_caught_and_repaired(fake_llm):
+    """실제 LLM 점검에서 본 사례: 진단 유형·근거 강도·집계 단위가 빠짐 → 검증 → 재생성."""
+    def drop_meaning(texts, fb, n):
+        if n > 1:
+            return [f"(고침) {t}" for t in texts]
+        return [re.sub(r"'[^']+'에 가깝습니다\(근거 강도: .\)", "모습이 아쉬운 편이에요", t).replace("읍면동 전체", "지역 전체")
+                for t in texts]
+    calls = fake_llm(drop_meaning)
+    out, comp, ver = _go()
+    assert [v["passed"] for v in ver] == [False, True]
+    assert any("꼭 남길 표현이 빠짐" in f and "동네 동반 하락형" in f for f in calls[1])
+    assert any("'동네 동반 하락형'" in s["text"] for s in out["report"]["my_store"])
+
+
 def test_llm_failure_uses_template(fake_llm):
     def boom(texts, fb, n):
         raise llm.LLMError("timeout")

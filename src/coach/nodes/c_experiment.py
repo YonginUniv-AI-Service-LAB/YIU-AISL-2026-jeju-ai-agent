@@ -196,12 +196,24 @@ class PolishedSentences(BaseModel):
     sentences: list[str]
 
 
+# 다듬어도 꼭 남아야 하는 표현(의미 보존). 실제 LLM 점검(2026-11-19)에서 진단 유형·방향·집계 단위가 빠지는 사례 확인
+_KEEP_FIXED = ["읍면동 전체", "내국인 방문 유동인구", "외국인 단기체류 유동인구", "보조 지표", "직전 6주", "작년 같은 시기",
+               "줄이는 쪽", "늘리는 쪽", "줄었", "늘었", "거의 변하지 않았"]
+
+
+def keep_phrases(text: str) -> list[str]:
+    """템플릿 문장에서 다듬은 뒤에도 남아야 하는 표현을 규칙으로 뽑는다(진단 유형 이름·근거 강도·지표·방향어)."""
+    keep = re.findall(r"'([^']+)'", text) + re.findall(r"근거 강도: [강중약]", text)
+    return keep + [k for k in _KEEP_FIXED if k in text]
+
+
 def _llm_polish(texts: list[str], feedback: list[str]) -> list[str]:
     """템플릿 문장 목록을 같은 개수로 다듬어 돌려받는다. 실패는 모두 llm.LLMError."""
+    items = [{"문장": t, "꼭_남길_표현": keep_phrases(t)} for t in texts]
     prompt = (PROMPT_DIR / "polish_report.md").read_text(encoding="utf-8")
     prompt = (prompt.replace("{banned}", ", ".join(f"'{b}'" for b in BANNED_PHRASES))
                     .replace("{feedback}", "\n".join(feedback) or "(없음)")
-                    .replace("{sentences}", json.dumps(texts, ensure_ascii=False, indent=1)))
+                    .replace("{sentences}", json.dumps(items, ensure_ascii=False, indent=1)))
     out = llm.extract_structured(prompt, PolishedSentences).sentences
     if len(out) != len(texts):
         raise llm.LLMError(f"문장 수가 다름: {len(out)} != {len(texts)}")
@@ -347,6 +359,13 @@ def verify(state):
                         vals = ", ".join(str(e.value) for e in cited)
                         vio.append(Violation(type="number_mismatch", section=sec, sentence=s.text,
                                              reason=f"문장 속 {x}%가 인용한 근거 값({vals})과 다름"))
+    pol = state["report"].get("_polish") or {}
+    where = {s.text: sec for sec in POLISH_SECTIONS for s in getattr(rep, sec)}
+    for t, p in zip(pol.get("template", []), pol.get("texts", [])):  # LLM 이 다듬은 문장의 의미 보존 검사
+        lost = [k for k in keep_phrases(t) if k not in p] if p != t else []
+        if lost and p in where:
+            vio.append(Violation(type="missing_evidence", section=where[p], sentence=p,
+                                 reason=f"다듬으면서 꼭 남길 표현이 빠짐: {', '.join(lost)}"))
     for s in rep.support_programs:  # 지원제도 문장은 출처 URL 이 근거 → 금지 표현과 출처 누락만 검사
         for b in BANNED_PHRASES:
             if b in s.text:
