@@ -97,3 +97,28 @@ def test_recompute_matches_reported_numbers(runs):
     out = runs[0]
     for e in out["analysis_result"]["evidence"]:
         assert A.recompute(e["metric"], out["store_input"]) == pytest.approx(e["value"], abs=0.05), e["claim_id"]
+
+
+def test_fitness_is_fit_and_store_period_matches_region(runs):
+    """S8: 실데이터 시나리오는 F1 적합 — 주문 기록 12주, 최근 6주가 지역 최근 창과 같은 기간."""
+    out = runs[0]
+    fit = next(t for t in out["trace"] if t["node"] == "A.check_fitness")
+    assert fit["fitness"] == "적합" and fit["cases"] == ["F1"] and out["analysis_result"]["mode"] == "current"
+    e = {x["claim_id"]: x for x in out["analysis_result"]["evidence"]}
+    assert e["E04"]["period"].split(" vs ")[0] == e["E01"]["period"].split(" vs ")[0] == "2026-07-20~2026-08-30"
+
+
+def test_s9_evaluable_cases_all_match():
+    """S9(노션 decisions ⑥-가): 4유형 중 '지역 숫자상 기대 진단이 나올 수 있는' 사례는 모두 일치해야 한다.
+    기준일 2026-08-31(여름 성수기)에는 co_decline·season_weather 가 실데이터에 나타날 수 없어 평가 불가로 분류."""
+    from coach.graph import run
+    rows = []
+    for c in json.loads((MOCK_DIR / "synthetic_stores_asof_20260831.json").read_text(encoding="utf-8")):
+        si = c["store_input"]
+        ar = run(f"{si.get('dong_name')}에서 카페 해요", si)["analysis_result"]
+        m = ar["metrics"]
+        reach = A.reachable_diagnoses(m["region_visit_prev_pct"], m["region_visit_yoy_pct"], m["region_rain_effect_pp"])
+        evaluable = c["expected_diagnosis"] in reach or c["expected_diagnosis"] == "undetermined"
+        rows.append((c["case_id"], evaluable, ar["diagnosis"] == c["expected_diagnosis"]))
+    assert all(ok for _, ev, ok in rows if ev), rows
+    assert sorted(cid for cid, ev, _ in rows if not ev) == ["S-co_decline", "S-season_weather"]

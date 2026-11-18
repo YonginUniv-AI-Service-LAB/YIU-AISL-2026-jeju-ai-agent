@@ -6,11 +6,14 @@ mock 모드: mocks/region_mock.json 의 가짜 지역 지표 + 점주 입력 실
 from __future__ import annotations
 
 import json
+from datetime import date, timedelta
 from functools import lru_cache
 from statistics import mean
 
 from ..config import MOCK_DIR, THRESHOLDS, USE_MOCK
-from ..contracts import AnalysisResult, Diagnosis, Evidence, Freshness, Mode, StoreInput
+from ..data import fitness as FIT
+from ..data.fitness import MIN_STORE_WEEKS, STORE_WEEKS  # 기준값은 fitness.py 한 곳(decisions ②-주수)
+from ..contracts import AnalysisResult, Diagnosis, Evidence, Freshness, StoreInput
 from ..trace import log
 
 
@@ -37,14 +40,23 @@ def pct_change(recent: float, base: float) -> float:
     return round((recent - base) / base * 100, 1) if base else 0.0
 
 
-def my_orders_change_pct(weeks: list[dict]) -> float | None:
-    """최근 6주 평균 vs 직전 6주 평균(영업일 보정: 주문/영업일)."""
-    if len(weeks) < 8:
+def store_compare_weeks(weeks: list[dict]) -> tuple[list[dict], list[dict]] | None:
+    """가장 최근 12주를 (직전 6주, 최근 6주)로. 12주가 안 되면 None. 16주를 넣어도 최근 12주만 쓴다."""
+    w = sorted(weeks, key=lambda x: x["week_start"])[-MIN_STORE_WEEKS:]
+    if len(w) < MIN_STORE_WEEKS:
         return None
-    w = sorted(weeks, key=lambda x: x["week_start"])
-    per_day = [x["orders"] / x["open_days"] for x in w if x["open_days"]]
-    half = len(per_day) // 2
-    return pct_change(mean(per_day[half:]), mean(per_day[:half]))
+    return w[:STORE_WEEKS], w[STORE_WEEKS:]
+
+
+def my_orders_change_pct(weeks: list[dict]) -> float | None:
+    """최근 6주 vs 직전 6주의 영업일당 주문 평균 변화율(%). 동네 창과 같은 6주 vs 6주로 고정."""
+    split = store_compare_weeks(weeks)
+    if split is None:
+        return None
+    prev, recent = ([x["orders"] / x["open_days"] for x in part if x["open_days"]] for part in split)
+    if not prev or not recent:      # 한쪽 6주가 전부 휴업이면 비교 불가
+        return None
+    return pct_change(mean(recent), mean(prev))
 
 
 def classify(my: float | None, visit_prev: float, visit_yoy: float, rain_pp: float) -> tuple[Diagnosis, str]:
@@ -63,6 +75,13 @@ def classify(my: float | None, visit_prev: float, visit_yoy: float, rain_pp: flo
     return Diagnosis.undetermined, "약"
 
 
+def reachable_diagnoses(visit_prev: float, visit_yoy: float, rain_pp: float) -> set[str]:
+    """이 동네·기준일의 지역 숫자에서 '가게 주문 변화가 어떤 값이든' 나올 수 있는 진단 유형.
+    평가용(S9): 기대 진단이 여기 없으면 그 사례는 실데이터로 '평가 불가'(가게 결과는 보지 않음 → 정답 누수 없음).
+    내 주문 변화 −100%~+100%를 0.1%p 간격으로 대입한다(classify 는 구간 비교라 이 간격이면 충분)."""
+    return {classify(x / 10, visit_prev, visit_yoy, rain_pp)[0].value for x in range(-1000, 1001)}
+
+
 def recompute(metric: str, store_input: dict) -> float | None:
     """검증용 재계산 진입점(C가 호출)."""
     if metric == "my_orders_change_pct":
@@ -71,22 +90,36 @@ def recompute(metric: str, store_input: dict) -> float | None:
     return d.get(metric.replace("region_", ""))
 
 
+def store_period_label(weeks: list[dict]) -> str | None:
+    """근거 E04 의 기간: 가게 비교에 실제로 쓴 '직전 6주 vs 최근 6주' 날짜(동네 창 날짜와 다를 수 있음)."""
+    split = store_compare_weeks(weeks)
+    if split is None:
+        return None
+    def span(part):
+        a = date.fromisoformat(str(part[0]["week_start"]))
+        return f"{a}~{date.fromisoformat(str(part[-1]['week_start'])) + timedelta(days=6)}"
+    return f"{span(split[1])} vs {span(split[0])}"
+
+
 # ── 노드
+def _judge(state) -> FIT.Fitness:
+    """적합성 판정(순수 함수 fitness.judge). check_fitness·analyze 가 같은 입력으로 다시 불러도 같은 결과."""
+    as_of = None
+    if not USE_MOCK:
+        from ..data.region_real import AS_OF as as_of  # mock 은 기준일 개념이 없어 F5 를 건너뜀
+    return FIT.judge(state["store_input"], state.get("question", ""), _region(), as_of)
+
+
 def check_fitness(state):
-    """데이터 적합성 판정 → 모드 결정. TODO(A): LLM이 질문 의도에 맞는 데이터 후보를 고르게 확장."""
-    si = StoreInput.model_validate(state["store_input"])
+    """데이터 적합성 판정(F1~F7) → 적합 / 범위 축소 / 판정 불가 + 모드 + 사유. 규칙: src/coach/data/fitness.py"""
+    StoreInput.model_validate(state["store_input"])
     reg = _region()
     fresh = [Freshness.model_validate(f) for f in reg["freshness"]]
-    notes = list(reg.get("excluded", []))  # 실제 모드: 결측 과다로 뺀 읍면동 사유
-    if si.dong_code not in reg["dongs"]:
-        notes.append(f"{si.dong_name or si.dong_code}: 시범 읍면동 밖 → 지역 지표 없음")
-    if not si.weeks:
-        mode = Mode.region_only
-        notes.append("점주 실적 없음 → '지역 수요 참고 분석'으로 강등")
-    else:
-        mode = Mode.current
-    partial = {"mode": mode.value, "data_freshness": [f.model_dump(mode="json") for f in fresh], "notes": notes}
-    return {"analysis_result": partial, "trace": log(state, "A.check_fitness", mode=mode.value, notes=notes)}
+    fit = _judge(state)
+    notes = list(reg.get("excluded", [])) + fit.notes  # 실제 모드: 결측 과다로 뺀 읍면동 사유 + 판정 사유
+    partial = {"mode": fit.mode, "data_freshness": [f.model_dump(mode="json") for f in fresh], "notes": notes}
+    return {"analysis_result": partial,
+            "trace": log(state, "A.check_fitness", fitness=fit.verdict, cases=fit.cases, mode=fit.mode, notes=notes)}
 
 
 def analyze(state):
@@ -94,7 +127,9 @@ def analyze(state):
     part = state["analysis_result"]
     reg = _region()
     d = reg["dongs"].get(si.dong_code or "", None)
-    my = my_orders_change_pct([w.model_dump(mode="json") for w in si.weeks])
+    fit = _judge(state)
+    weeks = [w.model_dump(mode="json") for w in si.weeks]
+    my = my_orders_change_pct(weeks) if fit.store_compare else None   # F2·F3·F7 → 내 가게 비교 안 함
     if d is None:
         diag, strength = Diagnosis.undetermined, "약"
         metrics, ev = {"my_orders_change_pct": my}, []
@@ -119,10 +154,10 @@ def analyze(state):
         if my is not None:
             ev.append(Evidence(claim_id="E04", metric="my_orders_change_pct", value=my, unit="pct",
                                formula="(최근6주 영업일당 주문 − 직전6주) / 직전6주 × 100", source_nos=[0],
-                               period=f"{w['recent']} vs {w['prev']}"))
-        # 보조 지표: 외국인 단기체류(753과 합산하지 않음, 노션 decisions 5). 지역 데이터에 있을 때만
+                               period=store_period_label(weeks)))
+        # 보조 지표: 외국인 단기체류(753과 합산하지 않음, 노션 decisions 5). 지역 데이터에 있고 F6 이 아닐 때만
         for cid, key, base in (("E05", "visit_for_prev_pct", "prev"), ("E06", "visit_for_yoy_pct", "yoy")):
-            if d.get(key) is not None:
+            if fit.use_foreign and d.get(key) is not None:
                 metrics[f"region_{key}"] = d[key]
                 ev.append(Evidence(claim_id=cid, metric=f"region_{key}", value=d[key], unit="pct",
                                    formula="(최근6주 일평균 외국인 단기체류 유동인구 − {0}) / {0} × 100".format(
