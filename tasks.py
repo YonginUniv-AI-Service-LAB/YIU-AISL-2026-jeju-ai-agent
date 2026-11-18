@@ -93,7 +93,8 @@ def eval_(a):
            COACH_EVAL_OFFICIAL="1" if a.official else "0", **OFFLINE_ENV)
     else:
         print(f"\n━━ eval 1/3 건너뜀: 스냅샷 없음 ({snapshot_dir(a.as_of).relative_to(ROOT)})")
-    sh("eval 2/3 전체 평가 (C 하네스 초안, mock)", [PY, "eval/run_eval.py"], COACH_MOCK="1", **OFFLINE_ENV)
+    sh("eval 2/3 C 평가 (실험·검증, mock + A 문항 리포트)" + (" — 공식 기록" if a.official else ""),
+       [PY, "eval/run_eval.py"], COACH_MOCK="1", COACH_EVAL_OFFICIAL="1" if a.official else "0", **OFFLINE_ENV)
     sh("eval 3/3 B 조건 추출 평가 (규칙 기반)", [PY, "eval/run_eval_b.py"], COACH_MOCK="1", **OFFLINE_ENV)
 
 
