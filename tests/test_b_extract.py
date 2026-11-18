@@ -18,7 +18,11 @@ from coach.nodes import b_orchestrator as B
     ("예산 30만 원 정도", {"budget_krw": 300000}),
     ("오전 9시부터 영업해요", {"staff_am": None}),      # 시각은 인원이 아님
     ("오후 세 시에 문 닫아요", {"staff_pm": None}),
-    ("오전 10시 오픈, 오전엔 둘", {"staff_am": 2}),     # 두 자리 시각도 제외하고 인원만
+    ("오전 10시 오픈, 오전엔 둘", {"staff_am": 2}),
+        # 인원 앞에 다른 말이 끼는 표현 (평가 문항 B05와 다른 문장으로 확인)
+    ("오후에는 아르바이트생까지 세 명이에요", {"staff_pm": 3}),
+    ("오전은 사장님 혼자 하고 오후엔 직원 1명 더 해서 2명", {"staff_am": 1, "staff_pm": 2}),
+    ("오전 8시 오픈, 오후엔 손님 많아서 두 사람이 해요", {"staff_am": None, "staff_pm": 2}),# 두 자리 시각도 제외하고 인원만
 ])
 def test_rule_extract_staff_and_budget(q, expected):
     out = B._rule_extract(q)
