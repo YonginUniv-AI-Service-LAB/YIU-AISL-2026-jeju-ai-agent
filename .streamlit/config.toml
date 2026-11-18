@@ -1,0 +1,10 @@
+# B 화면 테마 (주황 포인트)
+[theme]
+base = "light"
+primaryColor = "#e78748"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#fae3d2"
+textColor = "#2B2B2B"
+
+[client]
+toolbarMode = "minimal"
