@@ -38,9 +38,12 @@ def _git(*args: str) -> str:
 
 
 def code_version() -> dict:
-    commit = _git("rev-parse", "--short", "HEAD") or "unknown"
-    dirty = bool(_git("status", "--porcelain", "--untracked-files=no"))
-    return {"commit": commit, "dirty": dirty, "branch": _git("rev-parse", "--abbrev-ref", "HEAD")}
+    """git 이 있으면 git 에서, 없으면(Docker 컨테이너) 빌드 때 넣은 COACH_GIT_COMMIT 에서."""
+    commit = _git("rev-parse", "--short", "HEAD")
+    if commit:
+        dirty = bool(_git("status", "--porcelain", "--untracked-files=no"))
+        return {"commit": commit, "dirty": dirty, "branch": _git("rev-parse", "--abbrev-ref", "HEAD"), "source": "git"}
+    return {"commit": os.getenv("COACH_GIT_COMMIT", "unknown"), "dirty": False, "branch": "", "source": "docker-build-arg"}
 
 
 def config_snapshot() -> dict:

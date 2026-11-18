@@ -78,3 +78,20 @@ python tasks.py reproduce                     # 약 15초, 네트워크 없이 �
 - A 평가: `eval/cases_a.jsonl` 7문항(적합성 판정 F2~F7·성수기 착시·임계값 경계, 라이브 동결 데이터 재생 1문항) + 개발 사례(합성 4유형). 정답은 실행 전에 규칙·데이터 사실로 정했고 임계값 조정에 쓰지 않습니다. **정확도는 합성 사례 기준이며 실제 점주 대상 정확도가 아닙니다.**
 - 실행마다 `eval/runs/local/<UTC시각>_<커밋>_<노드>/`(git 제외)에, `python tasks.py eval --official`이면 공식 기록으로 `eval/runs/`(커밋 대상)에 `run_meta.json`(커밋·snapshot_id·config_hash·Python·lock 지문) · `metrics.json` · `predictions.jsonl`, 그리고 `eval/runs/index.jsonl`에 한 줄. **같은 코드·데이터·설정이면 `predictions_sha256`이 같습니다.**
 - (선택) `python -m pip install -r requirements-dev.txt`로 MLflow를 설치하면 같은 기록이 로컬 MLflow에도 남고, `mlflow ui --backend-store-uri sqlite:///mlflow.db`로 실행끼리 비교할 수 있습니다(lock·Docker에는 포함하지 않음).
+
+### Docker (심사·새 환경용 — 권장)
+```powershell
+docker build -t jeju-coach .
+docker run --rm --network none jeju-coach                        # 재현: 네트워크를 완전히 끊고 validate → test → eval → demo
+docker run --rm -p 8501:8501 jeju-coach python tasks.py app      # 점주용 화면 → 브라우저 http://localhost:8501
+docker run --rm --env-file .env jeju-coach python tasks.py live  # (선택) 라이브 모드 — 키·네트워크 필요
+```
+- 베이스 `python:3.14.10-slim`(버전 고정), `requirements.lock`으로 해시 검사 설치. 빌드 약 2분, 이미지 약 970MB
+- `.env`(키)는 이미지에 넣지 않습니다(`--env-file`로만 주입). 스냅샷(`data/snapshot/`)·라이브 동결 데이터(`data/live/snapshots/`)는 빌드할 때 있으면 포함 → **데이터가 든 이미지이므로 공개 레지스트리에 올리지 않습니다**
+- 이 PC 확인: 컨테이너 안 `reproduce` 21초 통과(평가 7/7), 화면 health 200
+
+### CI (GitHub Actions)
+PR·main push마다 `.github/workflows/ci.yml`이 ① Python 3.14 + lock 설치 → `python tasks.py test` ② Docker 빌드 → 컨테이너 안 테스트(네트워크 차단)를 자동으로 돌립니다. GitHub에는 키·스냅샷이 없어 mock 테스트만 돌고 실데이터 테스트는 건너뜁니다.
+
+### 넣지 않은 도구와 이유
+Airflow·Kubernetes·feature store·DVC 원격 저장소는 넣지 않았습니다. 데이터 수집은 하루 한 번 이하·4개 읍면동 규모라 `tasks.py snapshot` 한 명령으로 충분하고, 센터 PC(i7-8700/RAM 32GB)와 일정에서 운영 부담이 이득보다 큽니다. 대신 manifest 해시·검증 게이트·lock·Docker·실행 기록으로 같은 목적(재현·추적)을 가볍게 달성했습니다.
