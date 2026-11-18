@@ -12,7 +12,7 @@ import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from coach import session as S
-from coach.config import MOCK_DIR
+from coach.config import MOCK_DIR, USE_MOCK
 
 st.set_page_config(page_title="제주 가게 운영실험 코치", layout="centered")
 
@@ -25,9 +25,10 @@ DIAGNOSIS = {"co_decline": "동네 전체가 함께 줄었어요",
              "only_me": "동네는 괜찮은데 우리 가게만 줄었어요",
              "season_weather": "계절·날씨 영향이 커 보여요",
              "undetermined": "아직 판단하기 어려워요"}
+# 실데이터 모드는 지역 데이터 기간(~8/31)에 맞춘 시연 파일을 쓴다
+DEMO_FILE = "synthetic_stores.json" if USE_MOCK else "synthetic_stores_asof_20260831.json"
 DEMO = {c["store_input"]["dong_name"]: c["store_input"]
-        for c in json.loads((MOCK_DIR / "synthetic_stores.json").read_text(encoding="utf-8"))}
-
+        for c in json.loads((MOCK_DIR / DEMO_FILE).read_text(encoding="utf-8"))}
 
 def recent_weeks(n=8) -> pd.DataFrame:
     monday = date.today() - timedelta(days=date.today().weekday())
@@ -59,7 +60,7 @@ base = DEMO.get(demo, {})
 
 # ───────────────────────── 머리말
 st.title("제주 가게 운영실험 코치", anchor=False)
-st.write("우리 동네 손님 흐름과 내 가게 주문을 비교해서, **내 형편에 맞는 2주짜리 실험** 하나를 알려 드려요.")
+st.write("우리 동네 사람 흐름과 내 가게 주문을 비교해서, **내 형편에 맞는 2주짜리 실험** 하나를 알려 드려요.")
 st.caption("지금은 **카페**만 지원해요. 시범 지역: 애월읍 · 노형동 · 한림읍 · 연동")
 
 visit = st.segmented_control("방문", ["처음이에요", "2주 전에 받은 코드가 있어요"], default="처음이에요",
@@ -112,7 +113,7 @@ form = {"dong_name": dong, "dong_code": CODES.get(dong), "budget_krw": budget,
         "staff_am": staff_am, "staff_pm": staff_pm, "changeable": changeable, "weeks": weeks,
         "open_hours": base.get("open_hours"), "is_synthetic": bool(base)}
 
-with st.spinner("동네 손님 흐름과 우리 가게 주문을 비교하고 있어요..."):
+with st.spinner("동네 사람 흐름과 우리 가게 주문을 비교하고 있어요..."):
     out = S.run_session(sid, question, form)
 
 st.divider()
