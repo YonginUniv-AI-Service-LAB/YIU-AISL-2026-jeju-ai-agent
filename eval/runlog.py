@@ -6,6 +6,8 @@ write_run(node, predictions, metrics, snapshot_ids) →
     metrics.json      지표
     predictions.jsonl 문항별 예측(문항 id 순) → predictions_sha256 이 같으면 같은 결과(재현 확인)
   eval/runs/index.jsonl 에 한 줄 추가(실행끼리 비교용)
+기록 위치: 평소 실행(reproduce·eval)은 eval/runs/local/ (git 제외 → 작업 폴더가 더러워지지 않음),
+          공식 기록은 COACH_EVAL_OFFICIAL=1 (python tasks.py eval --official) 일 때만 eval/runs/ (커밋 대상). #11 리뷰
 MLflow 가 설치돼 있으면(requirements-dev.txt) 같은 내용을 로컬 MLflow(mlruns/)에도 기록. 없으면 조용히 건너뜀.
 """
 from __future__ import annotations
@@ -20,7 +22,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-RUNS = ROOT / "eval" / "runs"
+RUNS = ROOT / "eval" / "runs"            # 공식 기록(커밋)
+RUNS_LOCAL = RUNS / "local"               # 평소 실행 기록(.gitignore)
+
+
+def default_root() -> Path:
+    return RUNS if os.getenv("COACH_EVAL_OFFICIAL") == "1" else RUNS_LOCAL
 
 
 def _git(*args: str) -> str:
@@ -64,14 +71,16 @@ def environment() -> dict:
 
 
 def write_run(node: str, predictions: list[dict], metrics: dict, snapshot_ids: list[str], extra: dict | None = None,
-              root: Path = RUNS) -> Path:
+              root: Path | None = None) -> Path:
+    root = root or default_root()
+    root.mkdir(parents=True, exist_ok=True)
     code, cfg = code_version(), config_snapshot()
     preds = sorted(predictions, key=lambda p: (p.get("split", ""), p["id"]))
     meta = {
         "node": node, "started_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "code": code, "data": {"snapshot_ids": sorted(set(snapshot_ids))},
         "config": cfg, "config_hash": _sha(cfg)[:12], "environment": environment(),
-        "predictions_sha256": _sha(preds)[:16], **(extra or {}),
+        "predictions_sha256": _sha(preds)[:16], "official": root == RUNS, **(extra or {}),
     }
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     d = root / f"{stamp}_{code['commit']}{'-dirty' if code['dirty'] else ''}_{node}"

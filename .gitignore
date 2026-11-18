@@ -239,3 +239,6 @@ data/live/
 # MLflow 로컬 기록(커밋 안 함, 노션 decisions ③) — eval/runs/ 는 커밋
 mlruns/
 mlflow.db
+
+# 평소 평가 실행 기록(공식 기록은 eval/runs/ 에 --official 로만)
+eval/runs/local/

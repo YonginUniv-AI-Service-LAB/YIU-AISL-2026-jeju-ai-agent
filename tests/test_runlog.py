@@ -21,3 +21,11 @@ def test_write_run_records_four_parts_and_stable_hash(tmp_path, monkeypatch):
     assert [json.loads(x)["id"] for x in (d1 / "predictions.jsonl").read_text(encoding="utf-8").splitlines()] == ["A01", "A02"]
     idx = (tmp_path / "index.jsonl").read_text(encoding="utf-8").splitlines()
     assert len(idx) == 2 and json.loads(idx[0])["acc"] == 1.0
+
+
+def test_default_root_is_local_unless_official(monkeypatch):
+    """#11 리뷰: reproduce 가 커밋된 eval/runs/index.jsonl 을 바꾸면 작업 폴더가 더러워짐 → 평소엔 local."""
+    monkeypatch.delenv("COACH_EVAL_OFFICIAL", raising=False)
+    assert runlog.default_root() == runlog.RUNS_LOCAL
+    monkeypatch.setenv("COACH_EVAL_OFFICIAL", "1")
+    assert runlog.default_root() == runlog.RUNS

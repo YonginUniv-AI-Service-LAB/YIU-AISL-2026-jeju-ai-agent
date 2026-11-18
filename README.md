@@ -76,5 +76,5 @@ python tasks.py reproduce                     # 약 15초, 네트워크 없이 �
 
 ### 평가·실행 기록
 - A 평가: `eval/cases_a.jsonl` 7문항(적합성 판정 F2~F7·성수기 착시·임계값 경계, 라이브 동결 데이터 재생 1문항) + 개발 사례(합성 4유형). 정답은 실행 전에 규칙·데이터 사실로 정했고 임계값 조정에 쓰지 않습니다. **정확도는 합성 사례 기준이며 실제 점주 대상 정확도가 아닙니다.**
-- 실행마다 `eval/runs/<UTC시각>_<커밋>_<노드>/`에 `run_meta.json`(커밋·snapshot_id·config_hash·Python·lock 지문) · `metrics.json` · `predictions.jsonl`, 그리고 `eval/runs/index.jsonl`에 한 줄. **같은 코드·데이터·설정이면 `predictions_sha256`이 같습니다.**
+- 실행마다 `eval/runs/local/<UTC시각>_<커밋>_<노드>/`(git 제외)에, `python tasks.py eval --official`이면 공식 기록으로 `eval/runs/`(커밋 대상)에 `run_meta.json`(커밋·snapshot_id·config_hash·Python·lock 지문) · `metrics.json` · `predictions.jsonl`, 그리고 `eval/runs/index.jsonl`에 한 줄. **같은 코드·데이터·설정이면 `predictions_sha256`이 같습니다.**
 - (선택) `python -m pip install -r requirements-dev.txt`로 MLflow를 설치하면 같은 기록이 로컬 MLflow에도 남고, `mlflow ui --backend-store-uri sqlite:///mlflow.db`로 실행끼리 비교할 수 있습니다(lock·Docker에는 포함하지 않음).
