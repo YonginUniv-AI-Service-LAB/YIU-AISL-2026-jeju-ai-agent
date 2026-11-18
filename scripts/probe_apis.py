@@ -50,8 +50,16 @@ RETRIES = 6          # 서버가 같은 요청에도 무작위로 502를 냄(S1�
 STATS = {"calls": 0, "retries": 0}
 
 
+def _offline_guard() -> None:
+    """tasks.py reproduce/test/eval/demo 는 COACH_OFFLINE=1 로 실행 → API 호출이 끼어들면 즉시 실패."""
+    if os.getenv("COACH_OFFLINE") == "1":
+        raise RuntimeError("COACH_OFFLINE=1: 재현 단계에서는 API를 부르지 않습니다(스냅샷만 읽기). "
+                           "데이터가 필요하면 python tasks.py snapshot")
+
+
 def call(no: int, **params) -> dict:
     """API 호출 → JSON dict. 5xx·네트워크 오류는 재시도, 끝내 실패하면 키를 가린 메시지로 RuntimeError."""
+    _offline_guard()
     if not KEY:
         raise RuntimeError(".env 에 JEJU_DATAHUB_KEY 가 없음")
     url = f"{BASE}/{API[no]}/{KEY}"
@@ -147,6 +155,7 @@ def cmd_raw(no: str, *kv: str):
 
 def call_asos(start: str, end: str, stn: str, rows: int = 400) -> dict:
     """기상청 지상(종관, ASOS) 일자료. 날짜 YYYYMMDD, 종료일은 '어제'까지만 가능(기상청 규칙)."""
+    _offline_guard()
     if not GO_KEY:
         raise RuntimeError(".env 에 DATA_GO_KR_API_KEY 가 없음")
     from urllib.parse import unquote

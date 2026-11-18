@@ -5,7 +5,7 @@
 - 파일별 sha256 → manifest.json. snapshot_id = (파일명:해시 목록)의 sha256 앞 12자리.
 - 같은 원본이면 같은 파일·같은 snapshot_id 가 나와야 한다(행 정렬 고정).
 
-사용: python scripts/build_snapshot.py
+사용: python tasks.py snapshot --as-of 2026-08-31   (fetch 다음에 자동 실행)
 """
 from __future__ import annotations
 
@@ -18,7 +18,10 @@ from pathlib import Path
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
-AS_OF = "2026-08-31"
+sys.path.insert(0, str(ROOT / "src"))
+from coach.data.region_real import AS_OF as _AS_OF  # noqa: E402  (기준일은 region_real 한 곳에서)
+
+AS_OF = str(_AS_OF)
 SRC = ROOT / "data" / "raw" / "fetch" / AS_OF.replace("-", "")
 OUT = ROOT / "data" / "snapshot" / AS_OF
 
