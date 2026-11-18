@@ -138,3 +138,20 @@ def test_graph_end_to_end_in_live_mode(tmp_path, monkeypatch):
     assert fit["region_source"] == "live" and fit["cases"] == ["F1"]
     assert ar["snapshot_id"] == fit["snapshot_id"] and out["verify_result"]["passed"]
     assert ar["metrics"]["region_visit_prev_pct"] == 7.3 and ar["diagnosis"] in {"only_me", "undetermined"}
+
+
+def test_fallback_is_labeled_as_snapshot_in_trace(tmp_path, monkeypatch):
+    """#10 리뷰: 라이브 조회 실패 → 스냅샷 대체면 trace 출처도 snapshot_fallback 이어야 한다(live 로 보이면 헷갈림)."""
+    from coach.graph import run
+    from coach.nodes import a_data as A
+    monkeypatch.setattr(A, "USE_MOCK", False)
+    monkeypatch.setattr(A, "USE_LIVE", True)
+    monkeypatch.setattr(L, "ApiFetcher", lambda today=None: BrokenFetcher())
+    monkeypatch.setattr(L, "FETCHER_FACTORY", lambda today=None: BrokenFetcher(), raising=False)
+    A._live_region.cache_clear()
+    si = {**store(date(2026, 8, 24)), "budget_krw": 200000, "staff_am": 1, "staff_pm": 1}
+    out = run("노형동에서 카페 해요", si)
+    A._live_region.cache_clear()
+    fit = next(t for t in out["trace"] if t["node"] == "A.check_fitness")
+    assert fit["region_source"] == "snapshot_fallback" and fit["live"]["fallback"]
+    assert any("실시간 동네 데이터 조회 실패" in n for n in out["analysis_result"]["notes"])
