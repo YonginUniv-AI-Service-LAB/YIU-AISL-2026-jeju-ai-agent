@@ -1,0 +1,4 @@
+# 개발용 선택 의존성 (lock·Docker에는 넣지 않음, 노션 decisions ④)
+# 설치: python -m pip install -r requirements-dev.txt
+# 있으면 python tasks.py eval 이 실행 기록을 MLflow(로컬)에도 남김 → mlflow ui 로 비교
+mlflow==3.18.0

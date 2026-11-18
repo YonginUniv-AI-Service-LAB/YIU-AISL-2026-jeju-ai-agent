@@ -5,7 +5,7 @@
     python tasks.py snapshot --as-of 2026-08-31 API 호출 → data/snapshot/<AS_OF>/ + manifest  ← 키가 필요한 유일한 단계
     python tasks.py validate [--as-of …]        스냅샷 검증 게이트 (FAIL 이면 종료 코드 1)
     python tasks.py test                        mock 테스트 + (스냅샷 있으면) 실데이터 통합 테스트
-    python tasks.py eval                        평가 실행 (현재: B·C 평가 스크립트, S10 에서 A 평가·실행 기록 추가)
+    python tasks.py eval [--official]           평가 실행 + 실행 기록(평소 eval/runs/local/, --official 이면 eval/runs/)
     python tasks.py demo                        사람이 읽는 실데이터 시나리오 출력 (스냅샷)
     python tasks.py live [--shift-weeks -9]     라이브 모드: 점주 기록 시기에 맞춰 API로 동네 흐름 조회 (네트워크·키 필요)
     python tasks.py reproduce                   validate → test → eval → demo, 네트워크 없이
@@ -85,9 +85,15 @@ def test(a):
 
 
 def eval_(a):
-    # TODO(A, S10): A 평가 문항 + eval/runs/<시각>_<커밋>/ 실행 기록(metrics·run_meta·predictions)
-    sh("eval 1/2 전체 평가 (C 하네스 초안, mock)", [PY, "eval/run_eval.py"], COACH_MOCK="1", **OFFLINE_ENV)
-    sh("eval 2/2 B 조건 추출 평가 (규칙 기반)", [PY, "eval/run_eval_b.py"], COACH_MOCK="1", **OFFLINE_ENV)
+    """평가 실행 + 실행 기록(eval/runs/, MLflow 있으면 같이). A 평가는 스냅샷이 있어야 함."""
+    if (snapshot_dir(a.as_of) / "manifest.json").exists():
+        sh("eval 1/3 A 평가 (적합성 판정·진단, 실데이터)" + (" — 공식 기록" if a.official else ""),
+           [PY, "eval/run_eval_a.py"], COACH_MOCK="0", COACH_AS_OF=a.as_of,
+           COACH_EVAL_OFFICIAL="1" if a.official else "0", **OFFLINE_ENV)
+    else:
+        print(f"\n━━ eval 1/3 건너뜀: 스냅샷 없음 ({snapshot_dir(a.as_of).relative_to(ROOT)})")
+    sh("eval 2/3 전체 평가 (C 하네스 초안, mock)", [PY, "eval/run_eval.py"], COACH_MOCK="1", **OFFLINE_ENV)
+    sh("eval 3/3 B 조건 추출 평가 (규칙 기반)", [PY, "eval/run_eval_b.py"], COACH_MOCK="1", **OFFLINE_ENV)
 
 
 def demo(a):
@@ -116,6 +122,7 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser(description="jeju-coach 파이프라인 (Makefile 과 같은 대상)")
     ap.add_argument("target", choices=TARGETS)
     ap.add_argument("--as-of", default=os.getenv("COACH_AS_OF", DEFAULT_AS_OF), help="기준일 YYYY-MM-DD")
+    ap.add_argument("--official", action="store_true", help="eval: 공식 실행 기록(eval/runs/, 커밋 대상)으로 남기기")
     ap.add_argument("--case", default="S-only_me", help="live: 합성 점주 사례")
     ap.add_argument("--shift-weeks", type=int, default=0, help="live: 주문 기록을 N주 옮겨 다른 시기 질문 만들기")
     args = ap.parse_args()

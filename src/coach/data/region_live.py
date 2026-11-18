@@ -62,10 +62,48 @@ class ApiFetcher:
         return api.asos_rows(stn, s, e, self.root / "asos" / f"{stn}_{s}_{e}.json")
 
 
+class FrozenFetcher:
+    """동결된 스냅샷 폴더(라이브 조회 결과 또는 기준일 스냅샷)를 'API 응답 모양'으로 다시 꺼내 주는 재생용 fetcher.
+    평가·재현에서 라이브 사례를 네트워크 없이 같은 숫자로 다시 돌릴 때 쓴다. 폴더는 manifest 로 무결성 검사."""
+
+    def __init__(self, snapshot_dir: Path, last_obs: date | None = None):
+        man, errs = R.manifest_errors(Path(snapshot_dir))
+        if errs:
+            raise ValueError("; ".join(errs))
+        import pandas as pd
+        self.pd = pd
+        d = Path(snapshot_dir)
+        self.dom = pd.read_parquet(d / "domestic_753.parquet")
+        self.fo = pd.read_parquet(d / "foreign_748.parquet")
+        self.wt = pd.read_parquet(d / "weather_asos.parquet")
+        self.last = last_obs or date.fromisoformat(man.get("data_last_obs") or man["files"]["domestic_753.parquet"]["last_date"])
+
+    def latest(self, no, emd, upper):
+        return min(upper, self.last)
+
+    def hub(self, no, emd, start, end):
+        df = self.dom if no == 753 else self.fo
+        df = df[(df["emd"] == emd) & (df["base_date"] >= start) & (df["base_date"] <= end)]
+        ren = ({"age_group": "ageGroup", "resd_pop": "resdPop", "work_pop": "workPop", "visit_pop": "visitPop"}
+               if no == 753 else {"visit_pop": "visitPop"})
+        out = df.rename(columns=ren).assign(baseDate=df["base_date"].map(lambda d: d.strftime("%Y%m%d")))
+        return out.drop(columns=["base_date"]).to_dict("records")
+
+    def asos(self, stn, start, end):
+        w = self.wt[(self.wt["stn_id"] == stn) & (self.wt["base_date"] >= start) & (self.wt["base_date"] <= end)]
+        f = lambda v: "" if self.pd.isna(v) else f"{v}"  # noqa: E731  (기상청은 빈 강수량을 "" 로 줌)
+        return [{"tm": str(r.base_date), "stnId": r.stn_id, "stnNm": r.stn_name, "sumRn": f(r.sum_rn_mm),
+                 "avgTa": f(r.avg_ta_c), "minTa": f(r.min_ta_c), "maxTa": f(r.max_ta_c)} for r in w.itertuples()]
+
+
+# fetcher 를 지정하지 않으면 이걸로 만든다(평가·재현에서 FrozenFetcher 로 바꿔 끼움)
+FETCHER_FACTORY: Callable[..., object] = lambda today=None: ApiFetcher(today=today)  # noqa: E731
+
+
 def build_region_live(dong_codes: dict[str, str], dong_code: str | None, target: date, fetcher=None,
                       today: date | None = None, out_root: Path | None = None) -> dict:
     """_region() 과 같은 모양 + as_of·live 키. 시범 밖이면 dongs 가 비어 있다(→ F4)."""
-    fetcher = fetcher or ApiFetcher(today=today)
+    fetcher = fetcher or FETCHER_FACTORY(today=today)
     name = next((n for n, c in dong_codes.items() if c == dong_code), None)
     base = {"snapshot_id": "live-none", "window": {"recent": "", "prev": "", "yoy": ""}, "dongs": {},
             "freshness": [], "as_of": str(target), "excluded": [], "live": {"target": str(target)}}

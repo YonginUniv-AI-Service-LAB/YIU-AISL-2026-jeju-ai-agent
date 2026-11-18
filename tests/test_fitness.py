@@ -156,3 +156,16 @@ def test_notes_have_no_percent_numbers(make):
     """사유는 리포트 '한계'에 근거 번호 없이 실림 → '숫자%' 가 있으면 C 검증이 문장을 지운다."""
     import re
     assert not any(re.search(r"\d+(?:\.\d+)?\s*%", n) for n in make().notes)
+
+
+@pytest.mark.skipif(not USE_MOCK, reason="mock 모드 테스트")
+def test_graph_outside_pilot_with_weeks_does_not_crash():
+    """S10 평가에서 발견: 시범 밖 읍면동 + 주문 기록 → 지표엔 내 가게 변화율, 근거엔 E04 없음 → C 리포트 KeyError.
+    F4 면 내 가게 비교를 하지 않아 지표·근거가 짝을 이룬다."""
+    from coach.graph import run
+    si = next(c for c in json.loads((MOCK_DIR / "synthetic_stores.json").read_text(encoding="utf-8"))
+              if c["case_id"] == "S-only_me")["store_input"]
+    out = run("구좌읍 카페 손님이 줄었어요", {**si, "dong_code": "5011025600", "dong_name": "구좌읍"})
+    ar = out["analysis_result"]
+    assert ar["diagnosis"] == "undetermined" and ar["metrics"]["my_orders_change_pct"] is None
+    assert any(n.startswith("[판정 불가]") for n in ar["notes"]) and out["status"] in {"done", "fallback"}

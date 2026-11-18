@@ -51,7 +51,7 @@ Windows 는 `python tasks.py <대상>`, make 가 있는 환경(Docker·Linux)은
 | `snapshot --as-of 2026-08-31` | API → `data/raw/fetch/` → `data/snapshot/<AS_OF>/*.parquet` + `manifest.json` → 검증 | **사용(키 필요)** |
 | `validate` | 스냅샷 검증 게이트 6개(해시·스키마·날짜 연속성·시범 지역·외국인 0값·지연). FAIL 이면 종료 코드 1 | 없음 |
 | `test` | mock 테스트 + (스냅샷 있으면) 실데이터 통합 테스트 | 없음 |
-| `eval` | 평가 실행 (B·C 평가, A 평가는 S10에서 추가) | 없음 |
+| `eval` | 평가 실행 + **실행 기록**(`eval/runs/`: 코드·데이터·설정·환경 + 지표 + 예측, MLflow 있으면 같이) | 없음 |
 | `demo` | 사람이 읽는 실데이터 시나리오 출력 | 없음 |
 | `live [--shift-weeks N]` | **라이브 모드**: 점주 주문 기록 시기에 맞춰 그 동네·그 기간 데이터를 API로 조회해 분석 | **사용(키 필요)** |
 | `reproduce` | validate → test → eval → demo. 앞 단계가 실패하면 멈춤 | **차단됨** |
@@ -73,3 +73,8 @@ python tasks.py reproduce                     # 약 15초, 네트워크 없이 �
 - 기준일 2026-08-31(753·748 실제 마지막 관측일), 시범 시나리오 only_me·노형동. 결정 근거: 노션 A파트 「decisions」, 데이터 명세: 노션 A파트 「data_spec」
 - `COACH_MOCK=1`(기본)에서는 실데이터 테스트가 자동으로 건너뜁니다.
 - 읍면동 코드는 행정안전부 행정동코드(KIKmix 2026-07-01)로 교체됨: 애월읍 5011025300 · 노형동 5011066000 · 한림읍 5011025000 · 연동 5011065000
+
+### 평가·실행 기록
+- A 평가: `eval/cases_a.jsonl` 7문항(적합성 판정 F2~F7·성수기 착시·임계값 경계, 라이브 동결 데이터 재생 1문항) + 개발 사례(합성 4유형). 정답은 실행 전에 규칙·데이터 사실로 정했고 임계값 조정에 쓰지 않습니다. **정확도는 합성 사례 기준이며 실제 점주 대상 정확도가 아닙니다.**
+- 실행마다 `eval/runs/local/<UTC시각>_<커밋>_<노드>/`(git 제외)에, `python tasks.py eval --official`이면 공식 기록으로 `eval/runs/`(커밋 대상)에 `run_meta.json`(커밋·snapshot_id·config_hash·Python·lock 지문) · `metrics.json` · `predictions.jsonl`, 그리고 `eval/runs/index.jsonl`에 한 줄. **같은 코드·데이터·설정이면 `predictions_sha256`이 같습니다.**
+- (선택) `python -m pip install -r requirements-dev.txt`로 MLflow를 설치하면 같은 기록이 로컬 MLflow에도 남고, `mlflow ui --backend-store-uri sqlite:///mlflow.db`로 실행끼리 비교할 수 있습니다(lock·Docker에는 포함하지 않음).
