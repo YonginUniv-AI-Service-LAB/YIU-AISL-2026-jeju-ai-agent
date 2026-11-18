@@ -52,8 +52,8 @@ def test_notes_converted_and_exempt_from_number_check():
     st = _state(notes=["[범위 축소] 주문 기록 없음 → 12주가 필요해 동네 흐름만 제공",
                        "[판정 불가] 외국인 값 12.5% 빠짐 → 외국인 흐름 표시 안 함"])
     lim = [s["text"] for s in st["report"]["limits"]]
-    assert "이번에는 범위를 줄여 답했어요: 주문 기록 없음, 그래서 12주가 필요해 동네 흐름만 제공." in lim
-    assert any(t.startswith("판단할 수 없는 부분이 있어요: ") and "12.5%" in t for t in lim)
+    assert "[범위 축소] 주문 기록 없음, 그래서 12주가 필요해 동네 흐름만 제공." in lim
+    assert any(t.startswith("[판정 불가] ") and "12.5%" in t for t in lim)  # B 화면이 접두어로 안내를 띄움
     assert not any("→" in t for t in lim)
     assert _types(st) == []  # '12.5%'가 있어도 A 사유는 지워지지 않음
 

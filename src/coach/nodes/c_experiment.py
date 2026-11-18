@@ -112,13 +112,14 @@ def _chg(v: float) -> str:
 
 
 def note_sentence(note: str) -> str:
-    """A 판정 사유(notes) → 점주 말. 코드가 만든 사유라 verify 는 금지 표현만 검사(decisions_C ⑥)."""
-    head, body = "참고로 알려 드려요", note
-    for tag, h in (("[범위 축소]", "이번에는 범위를 줄여 답했어요"), ("[판정 불가]", "판단할 수 없는 부분이 있어요")):
+    """A 판정 사유(notes) → 점주 말. 코드가 만든 사유라 verify 는 금지 표현만 검사(decisions_C ⑥).
+    `[범위 축소]`/`[판정 불가]` 접두어는 남긴다 — B 화면이 이 접두어로 결과 맨 위 안내를 띄움(app/streamlit_app.py)."""
+    head, body = "참고로 알려 드려요:", note
+    for tag in ("[범위 축소]", "[판정 불가]"):
         if note.startswith(tag):
-            head, body = h, note[len(tag):].strip()
+            head, body = tag, note[len(tag):].strip()
     body = body.replace(" → ", ", 그래서 ").replace("→", ", 그래서 ").rstrip(". ")
-    return f"{head}: {body}."
+    return f"{head} {body}."
 
 
 def _template_sections(si: StoreInput, ar: AnalysisResult, note: str | None) -> dict[str, list[Sentence]]:
