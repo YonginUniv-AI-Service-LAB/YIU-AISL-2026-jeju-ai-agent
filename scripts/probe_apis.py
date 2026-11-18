@@ -11,79 +11,17 @@
 from __future__ import annotations
 
 import json
-import os
 import sys
 import time
 from datetime import date, timedelta
 from pathlib import Path
 
-import requests
-from dotenv import load_dotenv
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+# API 호출·키 가리기·재시도·오프라인 차단은 에이전트 본체와 같은 코드를 쓴다(src/coach/data/api_client.py)
+from coach.data.api_client import (API, ASOS_JEJU, GO_KEY, KEY, ROOT, STATS, asos_items,  # noqa: E402,F401
+                                   call, call_asos)
 
-ROOT = Path(__file__).resolve().parents[1]
 SAMPLE_DIR = ROOT / "data" / "raw" / "samples"
-BASE = "https://open.jejudatahub.net/api/proxy"
-# 데이터셋 번호 → API id (DATA_INTAKE.md)
-API = {
-    753: "Daaa1t3at3tt8a8DD3t55538t35Dab1t",  # 읍면동 내국인 유동인구
-    748: "t18b1bttt8abaDt51b8aat85ttaa8t5b",  # 읍면동 외국인 단기체류 유동인구
-    756: "1aD5taat1attaa51Db1511b51ab9Da19",  # 일별 기상
-    757: "t1bab75a555a15715btaa7a5abaa1aab",  # 기상관측소
-}
-
-load_dotenv(ROOT / ".env")
-KEY = os.getenv("JEJU_DATAHUB_KEY", "").strip()
-GO_KEY = os.getenv("DATA_GO_KR_API_KEY", "").strip()   # 공공데이터포털(기상청 ASOS 등)
-ASOS_URL = "https://apis.data.go.kr/1360000/AsosDalyInfoService/getWthrDataList"
-ASOS_JEJU = {"184": "제주", "185": "고산", "188": "성산", "189": "서귀포"}  # 제주도 종관 관측소
-
-
-def _redact(text: str) -> str:
-    from urllib.parse import quote
-    for k in (KEY, GO_KEY):
-        if k:  # 원문·URL 인코딩된 형태 둘 다 가림
-            text = text.replace(k, "***").replace(quote(k, safe=""), "***")
-    return text
-
-
-RETRIES = 6          # 서버가 같은 요청에도 무작위로 502를 냄(S1에서 확인) → 재시도 필수
-STATS = {"calls": 0, "retries": 0}
-
-
-def _offline_guard() -> None:
-    """tasks.py reproduce/test/eval/demo 는 COACH_OFFLINE=1 로 실행 → API 호출이 끼어들면 즉시 실패."""
-    if os.getenv("COACH_OFFLINE") == "1":
-        raise RuntimeError("COACH_OFFLINE=1: 재현 단계에서는 API를 부르지 않습니다(스냅샷만 읽기). "
-                           "데이터가 필요하면 python tasks.py snapshot")
-
-
-def call(no: int, **params) -> dict:
-    """API 호출 → JSON dict. 5xx·네트워크 오류는 재시도, 끝내 실패하면 키를 가린 메시지로 RuntimeError."""
-    _offline_guard()
-    if not KEY:
-        raise RuntimeError(".env 에 JEJU_DATAHUB_KEY 가 없음")
-    url = f"{BASE}/{API[no]}/{KEY}"
-    last = ""
-    for attempt in range(RETRIES):
-        STATS["calls"] += 1
-        body = ""
-        try:
-            r = requests.get(url, params=params, timeout=30)
-            body = r.text
-            if r.status_code >= 500:   # 무작위 502 → 잠시 후 다시
-                raise requests.HTTPError(f"{r.status_code} {r.reason}")
-            r.raise_for_status()       # 4xx 는 재시도해도 같으므로 바로 실패
-            return r.json()
-        except (requests.HTTPError, requests.ConnectionError, requests.Timeout) as e:
-            last = f"{type(e).__name__}: {e} | body={body[:300]}"
-            if isinstance(e, requests.HTTPError) and body and not str(e).startswith("5"):
-                break
-            STATS["retries"] += 1
-            time.sleep(min(0.5 * 2 ** attempt, 8))
-        except ValueError as e:        # JSON 이 아닌 응답
-            last = f"JSON 아님: {e} | body={body[:300]}"
-            break
-    raise RuntimeError(_redact(f"{no} 호출 실패({params}): {last}"))
 
 
 def save(name: str, no: int, params: dict, resp: dict) -> Path:
@@ -151,43 +89,6 @@ def cmd_raw(no: str, *kv: str):
     resp = call(int(no), **params)
     print(summary(resp))
     print(json.dumps((resp.get("data") or [])[:3], ensure_ascii=False, indent=1))
-
-
-def call_asos(start: str, end: str, stn: str, rows: int = 400) -> dict:
-    """기상청 지상(종관, ASOS) 일자료. 날짜 YYYYMMDD, 종료일은 '어제'까지만 가능(기상청 규칙)."""
-    _offline_guard()
-    if not GO_KEY:
-        raise RuntimeError(".env 에 DATA_GO_KR_API_KEY 가 없음")
-    from urllib.parse import unquote
-    params = {"serviceKey": unquote(GO_KEY),  # 'Encoding 키'를 넣었어도 requests 가 한 번만 인코딩하게
-              "pageNo": 1, "numOfRows": rows, "dataType": "JSON", "dataCd": "ASOS", "dateCd": "DAY",
-              "startDt": start, "endDt": end, "stnIds": stn}
-    last = ""
-    for attempt in range(RETRIES):
-        STATS["calls"] += 1
-        body = ""
-        try:
-            r = requests.get(ASOS_URL, params=params, timeout=30)
-            body = r.text
-            r.raise_for_status()
-            j = r.json()
-            code = j["response"]["header"]["resultCode"]
-            if code != "00":
-                raise RuntimeError(f"resultCode={code} {j['response']['header'].get('resultMsg')}")
-            return j
-        except (requests.RequestException, ValueError, KeyError, RuntimeError) as e:
-            last = f"{type(e).__name__}: {e} | body={body[:300]}"
-            if isinstance(e, (ValueError, KeyError, RuntimeError)):  # 형식·권한 오류는 재시도해도 같음
-                break
-            STATS["retries"] += 1
-            time.sleep(min(0.5 * 2 ** attempt, 8))
-    raise RuntimeError(_redact(f"ASOS 호출 실패({start}~{end}, stn={stn}): {last}"))
-
-
-def asos_items(j: dict) -> list[dict]:
-    body = j["response"]["body"]
-    items = (body.get("items") or {}).get("item") or []
-    return items if isinstance(items, list) else [items]
 
 
 if __name__ == "__main__":

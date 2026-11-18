@@ -88,7 +88,8 @@ def test_F5_within_tolerance_is_fine():
 def test_F6_foreign_gaps_drop_foreign_only():
     f = F.judge(store(12), "카페", region(foreign_gap_ratio=0.25), AS_OF)
     assert f.cases == ["F6"] and not f.use_foreign and f.store_compare and f.mode == "current"
-    assert "25%" in f.notes[0] and "내국인" in f.notes[0]
+    assert "내국인" in f.notes[0] and "%" not in f.notes[0]          # 사유 문장엔 % 수치 없음(C 검증과 충돌 방지)
+    assert f.details["foreign_gap_ratio"] == 0.25                     # 정확한 값은 details(trace)로
 
 
 def test_F7_store_period_not_overlapping_region():
@@ -141,3 +142,17 @@ def test_reachable_diagnoses_depends_only_on_region():
     assert reachable_diagnoses(-14.0, -12.0, 1.5) == {"co_decline", "undetermined"}  # 동네 감소 → 동반 하락(나만 하락은 불가)
     assert "season_weather" in reachable_diagnoses(-18.0, -2.0, 4.2)                # 직전 급감·전년 유지 → 계절 가능
     assert reachable_diagnoses(41.1, -4.7, -0.6) == {"only_me", "undetermined"}       # 성수기(실데이터 애월) → 둘만
+
+
+@pytest.mark.parametrize("make", [
+    lambda: F.judge(store(12), "노형동 고깃집", REGION, AS_OF),                                  # F2
+    lambda: F.judge(store(4), "카페", REGION, AS_OF),                                           # F3
+    lambda: F.judge(store(12, code="5011099999"), "카페", REGION, AS_OF),                        # F4
+    lambda: F.judge(store(12), "카페", REGION, AS_OF + timedelta(days=30)),                      # F5
+    lambda: F.judge(store(12), "카페", region(foreign_gap_ratio=0.31), AS_OF),                  # F6
+    lambda: F.judge(store(12, last_monday=date(2026, 11, 2)), "카페", REGION, AS_OF),            # F7
+])
+def test_notes_have_no_percent_numbers(make):
+    """사유는 리포트 '한계'에 근거 번호 없이 실림 → '숫자%' 가 있으면 C 검증이 문장을 지운다."""
+    import re
+    assert not any(re.search(r"\d+(?:\.\d+)?\s*%", n) for n in make().notes)

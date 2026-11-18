@@ -6,7 +6,8 @@
     python tasks.py validate [--as-of …]        스냅샷 검증 게이트 (FAIL 이면 종료 코드 1)
     python tasks.py test                        mock 테스트 + (스냅샷 있으면) 실데이터 통합 테스트
     python tasks.py eval                        평가 실행 (현재: B·C 평가 스크립트, S10 에서 A 평가·실행 기록 추가)
-    python tasks.py demo                        사람이 읽는 실데이터 시나리오 출력
+    python tasks.py demo                        사람이 읽는 실데이터 시나리오 출력 (스냅샷)
+    python tasks.py live [--shift-weeks -9]     라이브 모드: 점주 기록 시기에 맞춰 API로 동네 흐름 조회 (네트워크·키 필요)
     python tasks.py reproduce                   validate → test → eval → demo, 네트워크 없이
 
 Makefile 의 같은 이름 대상은 모두 이 파일을 부른다(Docker·Linux 용 껍데기).
@@ -27,7 +28,7 @@ DEFAULT_AS_OF = "2026-08-31"
 # 재현 단계(validate·test·eval·demo)에서 쓰는 환경: LLM 끔 + 네트워크 차단 두 겹
 #  1) COACH_OFFLINE=1 → 우리 API 함수(probe_apis.call/call_asos)가 호출을 거부
 #  2) 프록시를 닫힌 포트로 → requests/httpx 를 쓰는 어떤 라이브러리가 몰래 접속해도 연결 실패
-OFFLINE_ENV = {"COACH_LLM": "0", "COACH_OFFLINE": "1",
+OFFLINE_ENV = {"COACH_LLM": "0", "COACH_LIVE": "0", "COACH_OFFLINE": "1",
                "HTTP_PROXY": "http://127.0.0.1:9", "HTTPS_PROXY": "http://127.0.0.1:9", "NO_PROXY": ""}
 
 
@@ -94,6 +95,12 @@ def demo(a):
        **OFFLINE_ENV)
 
 
+def live(a):
+    """라이브 모드: 점주 기록 시기에 맞춰 API로 동네 흐름 조회 → 분석(네트워크·키 필요, 재현 단계 아님)."""
+    sh("live 실시간 동네 흐름 분석", [PY, "scripts/run_live.py", "--case", a.case, "--shift-weeks", str(a.shift_weeks)],
+       COACH_MOCK="0", COACH_LIVE="1", COACH_LLM="0")
+
+
 def reproduce(a):
     t0 = time.perf_counter()
     for step in (validate, test, eval_, demo):
@@ -102,12 +109,14 @@ def reproduce(a):
 
 
 TARGETS = {"setup": setup, "lock": lock, "snapshot": snapshot, "validate": validate, "test": test, "eval": eval_,
-           "demo": demo, "reproduce": reproduce}
+           "demo": demo, "live": live, "reproduce": reproduce}
 
 if __name__ == "__main__":
     sys.stdout.reconfigure(encoding="utf-8")
     ap = argparse.ArgumentParser(description="jeju-coach 파이프라인 (Makefile 과 같은 대상)")
     ap.add_argument("target", choices=TARGETS)
     ap.add_argument("--as-of", default=os.getenv("COACH_AS_OF", DEFAULT_AS_OF), help="기준일 YYYY-MM-DD")
+    ap.add_argument("--case", default="S-only_me", help="live: 합성 점주 사례")
+    ap.add_argument("--shift-weeks", type=int, default=0, help="live: 주문 기록을 N주 옮겨 다른 시기 질문 만들기")
     args = ap.parse_args()
     TARGETS[args.target](args)

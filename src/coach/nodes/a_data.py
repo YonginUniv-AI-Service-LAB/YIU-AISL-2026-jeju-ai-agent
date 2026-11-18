@@ -1,11 +1,14 @@
 """★A 데이터·분석 에이전트 — check_fitness / analyze(+classify) / recompute.
 
 mock 모드: mocks/region_mock.json 의 가짜 지역 지표 + 점주 입력 실적으로 '실제로' 계산한다.
-실제 모드(COACH_MOCK=0): data/snapshot/<기준일>/ 스냅샷에서 data/region_real.py 가 계산 → 같은 모양 dict.
+스냅샷 모드(COACH_MOCK=0): data/snapshot/<기준일>/ 스냅샷에서 data/region_real.py 가 계산 → 같은 모양 dict. (재현·테스트 기준)
+라이브 모드(COACH_MOCK=0 COACH_LIVE=1): 점주 주문 기록 시기에 맞춰 API로 동네 흐름 조회(data/region_live.py),
+  실패하면 스냅샷으로 대체. 계산 함수는 스냅샷 모드와 같다.
 """
 from __future__ import annotations
 
 import json
+import os
 from datetime import date, timedelta
 from functools import lru_cache
 from statistics import mean
@@ -29,9 +32,24 @@ def _real_region() -> dict:
     return build_region(dong_codes())
 
 
-def _region():
+USE_LIVE = os.getenv("COACH_LIVE", "0") == "1"   # ★A 라이브 모드 스위치(COACH_MOCK=0 일 때만 의미)
+
+
+@lru_cache(maxsize=32)
+def _live_region(dong_code: str, target_iso: str) -> dict:
+    """같은 읍면동·같은 기준일은 한 번만 조회(check_fitness·analyze·C 의 recompute 가 같은 숫자를 보게)."""
+    from ..data import region_live as L
+    weeks_stub = [{"week_start": str(date.fromisoformat(target_iso) - timedelta(days=6))}]
+    return L.region_for({"dong_code": dong_code or None, "weeks": weeks_stub}, dong_codes(), _real_region)
+
+
+def _region(store_input: dict | None = None):
+    """지역 지표 dict(모양 고정). 라이브 모드에서는 점주 입력(store_input)의 읍면동·기간에 맞춰 조회한다."""
     if USE_MOCK:
         return json.loads((MOCK_DIR / "region_mock.json").read_text(encoding="utf-8"))
+    if USE_LIVE and store_input is not None:
+        from ..data.region_live import target_date
+        return _live_region(store_input.get("dong_code") or "", str(target_date(store_input)))
     return _real_region()  # 한 실행 안에서는 같은 스냅샷 → 한 번만 계산
 
 
@@ -86,7 +104,7 @@ def recompute(metric: str, store_input: dict) -> float | None:
     """검증용 재계산 진입점(C가 호출)."""
     if metric == "my_orders_change_pct":
         return my_orders_change_pct(store_input.get("weeks", []))
-    d = _region()["dongs"].get(store_input.get("dong_code") or "", {})
+    d = _region(store_input)["dongs"].get(store_input.get("dong_code") or "", {})   # 라이브면 같은 조회 결과(캐시)
     return d.get(metric.replace("region_", ""))
 
 
@@ -104,28 +122,39 @@ def store_period_label(weeks: list[dict]) -> str | None:
 # ── 노드
 def _judge(state) -> FIT.Fitness:
     """적합성 판정(순수 함수 fitness.judge). check_fitness·analyze 가 같은 입력으로 다시 불러도 같은 결과."""
-    as_of = None
-    if not USE_MOCK:
-        from ..data.region_real import AS_OF as as_of  # mock 은 기준일 개념이 없어 F5 를 건너뜀
-    return FIT.judge(state["store_input"], state.get("question", ""), _region(), as_of)
+    reg = _region(state["store_input"])
+    as_of = date.fromisoformat(reg["as_of"]) if reg.get("as_of") else None   # mock 은 기준일 없음 → F5 건너뜀
+    return FIT.judge(state["store_input"], state.get("question", ""), reg, as_of)
+
+
+def _region_source(reg: dict) -> str:
+    """trace 표시용 지역 데이터 출처. 라이브 조회가 실패해 스냅샷으로 대체됐으면 그렇게 표시(#10 리뷰)."""
+    if USE_MOCK:
+        return "mock"
+    live = reg.get("live") or {}
+    if live.get("fallback"):
+        return "snapshot_fallback"
+    return "live" if live else "snapshot"
 
 
 def check_fitness(state):
     """데이터 적합성 판정(F1~F7) → 적합 / 범위 축소 / 판정 불가 + 모드 + 사유. 규칙: src/coach/data/fitness.py"""
     StoreInput.model_validate(state["store_input"])
-    reg = _region()
+    reg = _region(state["store_input"])
     fresh = [Freshness.model_validate(f) for f in reg["freshness"]]
     fit = _judge(state)
     notes = list(reg.get("excluded", [])) + fit.notes  # 실제 모드: 결측 과다로 뺀 읍면동 사유 + 판정 사유
     partial = {"mode": fit.mode, "data_freshness": [f.model_dump(mode="json") for f in fresh], "notes": notes}
     return {"analysis_result": partial,
-            "trace": log(state, "A.check_fitness", fitness=fit.verdict, cases=fit.cases, mode=fit.mode, notes=notes)}
+            "trace": log(state, "A.check_fitness", fitness=fit.verdict, cases=fit.cases, details=fit.details, mode=fit.mode, notes=notes,
+                         region_source=_region_source(reg),
+                         snapshot_id=reg.get("snapshot_id"), live=reg.get("live"))}
 
 
 def analyze(state):
     si = StoreInput.model_validate(state["store_input"])
     part = state["analysis_result"]
-    reg = _region()
+    reg = _region(state["store_input"])
     d = reg["dongs"].get(si.dong_code or "", None)
     fit = _judge(state)
     weeks = [w.model_dump(mode="json") for w in si.weeks]

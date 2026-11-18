@@ -4,7 +4,7 @@
 PY ?= python
 AS_OF ?= 2026-08-31
 
-.PHONY: setup lock snapshot validate test eval demo reproduce
+.PHONY: setup lock snapshot validate test eval demo live reproduce
 
 setup:
 	$(PY) tasks.py setup --as-of $(AS_OF)
@@ -29,4 +29,7 @@ reproduce:
 
 lock:
 	$(PY) tasks.py lock
+
+live:
+	$(PY) tasks.py live
 

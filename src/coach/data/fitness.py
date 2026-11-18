@@ -11,6 +11,9 @@
 | F7  | 주문 최근 6주 ↔ 지역 최근 창 겹침 < 21일        | 범위 축소   | 동네 흐름만 |
 기준값 근거: 노션 decisions 2026-11-17 (①, ②, ③).
 
+* 사유(notes)는 C 리포트 '한계'에 근거 번호 없이 실리므로, "숫자+%" 문장은 C 검증(missing_evidence)에 걸린다.
+  정확한 비율은 Fitness.details → trace 로 남긴다(라이브 실행 2026-11-17 에서 발견).
+
 라이브 모드 확장: 기간(region["window"])과 기준일(as_of)을 인자로 받으므로, 점주 기간에 맞춰 API 로 받은 지역 지표를
 넣어도 같은 판정을 쓴다. 그때 F7 은 '축소' 대신 '그 기간 데이터를 가져오기'로 바뀐다.
 """
@@ -38,6 +41,7 @@ class Fitness:
     verdict: str = FIT
     cases: list[str] = field(default_factory=list)   # 걸린 사례 번호 (F1 = 아무것도 안 걸림)
     notes: list[str] = field(default_factory=list)
+    details: dict = field(default_factory=dict)       # 사유의 정확한 수치(trace 용). 사유 문장에는 % 수치를 넣지 않는다*
     store_compare: bool = True     # False → 내 가게 비교(진단) 안 함, 동네 흐름만
     use_foreign: bool = True       # False → 외국인 보조 지표(E05·E06) 표시 안 함
     has_region: bool = True
@@ -130,7 +134,8 @@ def judge(store_input: dict, question: str, region: dict, as_of: date | None = N
     gap = ((dong or {}).get("_quality") or {}).get("foreign_gap_ratio")
     if gap is not None and gap > FOREIGN_GAP_MAX_RATIO:
         f.use_foreign = False
-        f.add("F6", NARROW, f"{dong.get('dong_name')} 외국인 단기체류 값에 빠지거나 0인 칸이 {gap:.0%} → 외국인 흐름은 "
+        f.details["foreign_gap_ratio"] = gap
+        f.add("F6", NARROW, f"{dong.get('dong_name')} 외국인 단기체류 값에 빠지거나 0인 칸이 허용 기준보다 많음 → 외국인 흐름은 "
                             f"표시하지 않고 내국인 방문 기준으로만 진단")
 
     if not f.cases:
