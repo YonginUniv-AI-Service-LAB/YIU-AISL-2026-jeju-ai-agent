@@ -97,3 +97,12 @@ def test_recompute_matches_reported_numbers(runs):
     out = runs[0]
     for e in out["analysis_result"]["evidence"]:
         assert A.recompute(e["metric"], out["store_input"]) == pytest.approx(e["value"], abs=0.05), e["claim_id"]
+
+
+def test_fitness_is_fit_and_store_period_matches_region(runs):
+    """S8: 실데이터 시나리오는 F1 적합 — 주문 기록 12주, 최근 6주가 지역 최근 창과 같은 기간."""
+    out = runs[0]
+    fit = next(t for t in out["trace"] if t["node"] == "A.check_fitness")
+    assert fit["fitness"] == "적합" and fit["cases"] == ["F1"] and out["analysis_result"]["mode"] == "current"
+    e = {x["claim_id"]: x for x in out["analysis_result"]["evidence"]}
+    assert e["E04"]["period"].split(" vs ")[0] == e["E01"]["period"].split(" vs ")[0] == "2026-07-20~2026-08-30"
