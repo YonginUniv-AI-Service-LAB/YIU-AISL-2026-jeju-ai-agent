@@ -41,6 +41,24 @@ _NUM = r"(\d+|다섯|하나|한|둘|두|셋|세|넷|네)"
 def _to_int(s: str) -> int:
     return int(s) if s.isdigit() else _KNUM[s]
 
+def _staff_after(q: str, kw: str) -> int | None:
+    """'오전'/'오후' 뒤 구간(다음 오전·오후나 쉼표·마침표 전까지)에서 인원을 찾는다."""
+    for seg in re.findall(kw + r"([^,.!?]*?)(?=오전|오후|[,.!?]|$)", q):
+        # 1) 바로 뒤 숫자: "오전 2명", "오전엔 둘". (?![\d\s]*시)로 "오전 9시" 같은 시각은 제외
+        #    "네"는 대답("네, 두 명이요")일 수 있어서 바로 뒤에 '명/사람'이 붙을 때만 숫자로 봄
+        if (m := re.match(r"\s*(?:에는|에|엔|은|는)?\s*" + _NUM + r"(?![\d\s]*시)(\s*(?:명|사람))?", seg)) \
+                and not (m.group(1) == "네" and not m.group(2)):
+            return _to_int(m.group(1))
+        # 2) 중간에 말이 끼면 '명/사람'이 붙은 마지막 숫자: "오후엔 알바 한 명 더 해서 두 명" → 2
+        #    "손님이 세 명"처럼 손님·고객 수는 일하는 인원이 아니라서 제외
+        nums = [n.group(1) for n in re.finditer(_NUM + r"\s*(?:명|사람)", seg)
+                if not re.search(r"(?:손님|고객|방문객)\s*(?:이|가|은|는|도)?\s*$", seg[:n.start()])]
+        if nums:
+            return _to_int(nums[-1])
+        # 3) "오전엔 저 혼자" → 1
+        if "혼자" in seg:
+            return 1
+    return None
 
 def _dong_codes() -> dict[str, str]:
     """{읍면동 이름: 행정코드}. A의 매핑표에서 읽음('_'로 시작하는 메모 키 제외)."""
@@ -62,9 +80,8 @@ def _rule_extract(q: str) -> dict:
         out["budget_krw"] = 0
     # 인력: "오전 2명", "오전엔 둘", "오후에 한 명", "혼자"
     for slot, kw in (("staff_am", "오전"), ("staff_pm", "오후")):
-        # (?![\d\s]*시): "오전 9시", "오후 세 시", "10시"처럼 숫자 뒤에 '시'가 오면 시각이라 제외
-        if m := re.search(kw + r"\s*(?:에는|에|엔|은|는)?\s*" + _NUM + r"(?![\d\s]*시)\s*(?:명|사람)?", q):
-            out[slot] = _to_int(m.group(1))
+        if (n := _staff_after(q, kw)) is not None:
+            out[slot] = n
     if re.search(r"혼자", q):  # 이미 숫자로 말한 값이 있으면 덮어쓰지 않음(setdefault)
         out.setdefault("staff_am", 1)
         out.setdefault("staff_pm", 1)
