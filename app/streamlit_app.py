@@ -96,7 +96,7 @@ st.subheader(anchor=False, body="3. 최근 주문 수 (선택)")
 st.caption("있으면 동네와 우리 가게를 비교할 수 있어 더 정확해요. 주마다 대략적인 주문 수만 적어 주세요.")
 weeks_box = st.expander("주문 수 적기", expanded=False)
 weeks_df = (pd.DataFrame(base["weeks"])[["week_start", "orders", "open_days"]]
-            .assign(week_start=lambda d: pd.to_datetime(d.week_start).dt.date)) if base else recent_weeks()
+            .assign(week_start=lambda d: pd.to_datetime(d.week_start).dt.date)) if base.get("weeks") else recent_weeks()
 weeks_df = weeks_box.data_editor(weeks_df, num_rows="dynamic", hide_index=True, width="stretch",
                           column_config={"week_start": st.column_config.DateColumn("주 시작(월요일)"),
                                          "orders": st.column_config.NumberColumn("주문 수", min_value=0),
@@ -113,7 +113,7 @@ form = {"dong_name": dong, "dong_code": CODES.get(dong), "budget_krw": budget,
         "staff_am": staff_am, "staff_pm": staff_pm, "changeable": changeable, "weeks": weeks,
         "open_hours": base.get("open_hours"), "is_synthetic": bool(base)}
 
-with st.spinner("동네 사람 흐름과 우리 가게 주문을 비교하고 있어요..."):
+with st.spinner("동네 데이터를 불러오고 있어요. 처음엔 1분 정도 걸릴 수 있어요..."):
     out = S.run_session(sid, question, form)
 
 st.divider()
@@ -123,6 +123,12 @@ if out.get("status") == "need_input":
 
 rp = out.get("report") or {}
 st.subheader(anchor=False, body="결과 한눈에 보기")
+
+# 범위 축소·판정 불가면 이유를 결과 맨 위에 먼저 보여 준다 (A 적합성 판정 사유)
+SCOPE_TAGS = ("[범위 축소]", "[판정 불가]")
+scope_notes = [s["text"] for s in rp.get("limits", []) if s["text"].startswith(SCOPE_TAGS)]
+if scope_notes:
+    st.info("**이번엔 일부만 분석했어요**\n\n" + "\n\n".join(f"- {t}" for t in scope_notes))
 
 rv = out.get("experiment_review")
 if rv:
@@ -153,11 +159,15 @@ if exp:
         st.write(f"**이렇게 확인해요:** {exp['metric']}")
         st.write(f"**이럴 땐 그만둬요:** {exp['stop_rule']}")
 
-with st.container(border=True):
-    st.markdown("**2주 뒤에 다시 와 주세요**")
-    st.markdown(f"## {sid}")
-    st.caption("이 코드를 적어 두시면 2주 뒤 실험 결과를 함께 점검해 드려요. "
-               "코드만 알면 기록을 볼 수 있으니 **다른 사람에게 알려 주지 마세요.**")
+# 실험이 있을 때만 재방문 코드를 준다 (실험이 없으면 저장도 안 돼서 코드가 쓸모없음)
+if exp:
+    with st.container(border=True):
+        st.markdown("**2주 뒤에 다시 와 주세요**")
+        st.header(sid, anchor=False)
+        st.caption("이 코드를 적어 두시면 2주 뒤 실험 결과를 함께 점검해 드려요. "
+                   "코드만 알면 기록을 볼 수 있으니 **다른 사람에게 알려 주지 마세요.**")
+else:
+    st.caption("이번엔 해 볼 실험을 고르지 않아서 재방문 코드는 만들지 않았어요.")
 
 if rp.get("is_synthetic_input"):
     st.caption("※ 시연용 합성 점주 데이터로 만든 결과예요.")

@@ -1,0 +1,23 @@
+# 키·개인 파일은 절대 이미지에 넣지 않음
+.env
+.env.*
+!.env.example
+# 개발 환경·캐시
+.venv/
+**/__pycache__/
+.pytest_cache/
+.vscode/
+.git/
+# 원본 API 응답·라이브 캐시·세션·로컬 기록 (포함: data/snapshot/ 기준일 스냅샷, data/live/snapshots/ 라이브 동결 데이터)
+data/raw/
+data/live/cache/
+data/sessions/
+eval/runs/local/
+mlruns/
+mlflow.db
+eval/last_result.json
+*.zip
+# 로컬 문서(노션 공유)
+CLAUDE.md
+DATA_INTAKE.md
+docs/
