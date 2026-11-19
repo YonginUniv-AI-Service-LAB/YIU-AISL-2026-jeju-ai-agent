@@ -1,0 +1,59 @@
+{
+  "node": "A",
+  "started_at": "2026-11-19T05:24:05+00:00",
+  "code": {
+    "commit": "c5c5b35",
+    "dirty": false,
+    "branch": "main",
+    "source": "git"
+  },
+  "data": {
+    "snapshot_ids": [
+      "be4aa6c54a63",
+      "eb593ba554a7"
+    ]
+  },
+  "config": {
+    "thresholds": {
+      "my_decline_pct": -10.0,
+      "region_flat_pct": -5.0,
+      "co_decline_gap_pp": 10.0
+    },
+    "fitness": {
+      "STORE_WEEKS": 6,
+      "MIN_STORE_WEEKS": 12,
+      "MIN_OVERLAP_DAYS": 21,
+      "LAG_WARN_DAYS": 7,
+      "FOREIGN_GAP_MAX_RATIO": 0.1
+    },
+    "region": {
+      "as_of": "2026-08-31",
+      "weeks": 6,
+      "yoy_shift_days": 364,
+      "rain_mm": 1.0,
+      "max_missing_ratio": 0.1,
+      "station_of": {
+        "애월읍": "184",
+        "노형동": "184",
+        "연동": "184",
+        "한림읍": "185"
+      }
+    }
+  },
+  "config_hash": "7cb599ebecb5",
+  "environment": {
+    "python": "3.14.10",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "lock_sha256": "5208ac9395e5",
+    "env": {
+      "COACH_AS_OF": "2026-08-31",
+      "COACH_EVAL_OFFICIAL": "1",
+      "COACH_LIVE": "0",
+      "COACH_LLM": "0",
+      "COACH_MOCK": "0",
+      "COACH_OFFLINE": "1"
+    }
+  },
+  "predictions_sha256": "3cd15785c22b1590",
+  "official": true
+}
