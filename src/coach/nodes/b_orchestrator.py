@@ -45,10 +45,15 @@ def _staff_after(q: str, kw: str) -> int | None:
     """'오전'/'오후' 뒤 구간(다음 오전·오후나 쉼표·마침표 전까지)에서 인원을 찾는다."""
     for seg in re.findall(kw + r"([^,.!?]*?)(?=오전|오후|[,.!?]|$)", q):
         # 1) 바로 뒤 숫자: "오전 2명", "오전엔 둘". (?![\d\s]*시)로 "오전 9시" 같은 시각은 제외
-        if m := re.match(r"\s*(?:에는|에|엔|은|는)?\s*" + _NUM + r"(?![\d\s]*시)", seg):
+        #    "네"는 대답("네, 두 명이요")일 수 있어서 바로 뒤에 '명/사람'이 붙을 때만 숫자로 봄
+        if (m := re.match(r"\s*(?:에는|에|엔|은|는)?\s*" + _NUM + r"(?![\d\s]*시)(\s*(?:명|사람))?", seg)) \
+                and not (m.group(1) == "네" and not m.group(2)):
             return _to_int(m.group(1))
         # 2) 중간에 말이 끼면 '명/사람'이 붙은 마지막 숫자: "오후엔 알바 한 명 더 해서 두 명" → 2
-        if nums := re.findall(_NUM + r"\s*(?:명|사람)", seg):
+        #    "손님이 세 명"처럼 손님·고객 수는 일하는 인원이 아니라서 제외
+        nums = [n.group(1) for n in re.finditer(_NUM + r"\s*(?:명|사람)", seg)
+                if not re.search(r"(?:손님|고객|방문객)\s*(?:이|가|은|는|도)?\s*$", seg[:n.start()])]
+        if nums:
             return _to_int(nums[-1])
         # 3) "오전엔 저 혼자" → 1
         if "혼자" in seg:

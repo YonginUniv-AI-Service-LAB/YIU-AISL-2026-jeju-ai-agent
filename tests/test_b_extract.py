@@ -23,6 +23,9 @@ from coach.nodes import b_orchestrator as B
     ("오후에는 아르바이트생까지 세 명이에요", {"staff_pm": 3}),
     ("오전은 사장님 혼자 하고 오후엔 직원 1명 더 해서 2명", {"staff_am": 1, "staff_pm": 2}),
     ("오전 8시 오픈, 오후엔 손님 많아서 두 사람이 해요", {"staff_am": None, "staff_pm": 2}),# 두 자리 시각도 제외하고 인원만
+        # 리뷰에서 나온 문장: 손님 수는 인원이 아님, 대답 "네"는 4명이 아님
+    ("오후엔 손님이 세 명 정도 와요, 저 혼자 운영해요", {"staff_pm": 1}),
+    ("오전엔 네, 두 명이요", {"staff_am": None}),
 ])
 def test_rule_extract_staff_and_budget(q, expected):
     out = B._rule_extract(q)
