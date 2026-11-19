@@ -57,6 +57,19 @@ def extract_structured(prompt: str, schema: type[T]) -> T:
     LAST_LATENCY_S = round(time.perf_counter() - t0, 2)
     return out
 
+# 일시 오류: 서버 과부하(503 UNAVAILABLE)·순간 한도 초과(429 RESOURCE_EXHAUSTED)
+_RETRY_MARKERS = ("503", "UNAVAILABLE", "429", "RESOURCE_EXHAUSTED")
+
+
+def _retry_once(call, wait_s: float = 1.0):
+    """일시 오류면 잠깐 쉬고 딱 1번만 다시 시도. 키 오류 같은 나머지는 바로 넘김(규칙 기반으로 대체)."""
+    try:
+        return call()
+    except Exception as e:
+        if not any(m in str(e) for m in _RETRY_MARKERS):
+            raise
+        time.sleep(wait_s)
+        return call()
 
 def _gemini(prompt: str, schema: type[BaseModel], key: str) -> str:
     try:
@@ -67,15 +80,15 @@ def _gemini(prompt: str, schema: type[BaseModel], key: str) -> str:
     timeout_ms = int(float(os.getenv("LLM_TIMEOUT_S", "15")) * 1000)
     try:
         client = genai.Client(api_key=key, http_options=types.HttpOptions(timeout=timeout_ms))
-        resp = client.models.generate_content(
+        resp = _retry_once(lambda: client.models.generate_content(
             model=model_name(),
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
-                response_schema=schema,     # 구조화 출력: 이 형식으로만 답하게
-                temperature=0,  # 같은 입력 → 최대한 같은 출력(재현성)
+                response_schema=schema,  # 구조화 출력: 이 형식으로만 답하게
+                temperature=0,           # 같은 입력 → 최대한 같은 출력(재현성)
             ),
-        )
+        ))
     except Exception as e:  # 네트워크·인증·한도 초과 등
         raise LLMError(f"Gemini 호출 실패: {type(e).__name__}: {e}") from e
     if not resp.text:

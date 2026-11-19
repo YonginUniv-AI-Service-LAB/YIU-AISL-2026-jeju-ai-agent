@@ -85,3 +85,26 @@ def test_no_api_key_raises(monkeypatch):
     monkeypatch.delenv("LLM_API_KEY", raising=False)
     with pytest.raises(llm.LLMError):
         llm.extract_structured("x", B.ExtractedSlots)
+        
+
+
+# ── LLM 일시 오류 재시도 (503·429만 1번)
+def test_retry_once_on_temporary_error():
+    calls = []
+    def flaky():
+        calls.append(1)
+        if len(calls) == 1:
+            raise RuntimeError("503 UNAVAILABLE")
+        return "ok"
+    assert llm._retry_once(flaky, wait_s=0) == "ok"
+    assert len(calls) == 2
+
+
+def test_no_retry_on_other_error():
+    calls = []
+    def bad_key():
+        calls.append(1)
+        raise RuntimeError("400 API key not valid")
+    with pytest.raises(RuntimeError):
+        llm._retry_once(bad_key, wait_s=0)
+    assert len(calls) == 1  # 키 오류는 다시 해도 똑같으니 바로 규칙 기반으로
