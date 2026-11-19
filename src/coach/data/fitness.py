@@ -100,7 +100,10 @@ def judge(store_input: dict, question: str, region: dict, as_of: date | None = N
     if dong is None:
         f.has_region = False
         f.store_compare = False   # 비교할 동네 지표가 없으면 내 가게 비교도 안 함(지표·근거 E04 짝 유지 — S10 평가에서 발견)
-        f.add("F4", UNABLE, f"{name or '읍면동 미지정'}: 해당 읍면동 스냅샷 없음(시범 지역: {pilot}) → 지역 지표로 진단할 수 없음")
+        if pilot:   # 지역 데이터는 있는데 그 읍면동이 없음
+            f.add("F4", UNABLE, f"{name or '읍면동 미지정'}: 해당 읍면동 스냅샷 없음(시범 지역: {pilot}) → 지역 지표로 진단할 수 없음")
+        else:       # 지역 데이터 자체가 없음(사유는 excluded 에 이미 있음) → 짧게
+            f.add("F4", UNABLE, f"{name or '읍면동 미지정'}: 지역 지표 없이 답함(동네 흐름·내 가게 비교 없음)")
 
     # F2 범위 축소: 카페가 아닌 업종
     if (w := industry_word(question)) is not None:
@@ -122,7 +125,8 @@ def judge(store_input: dict, question: str, region: dict, as_of: date | None = N
         if ov < MIN_OVERLAP_DAYS:
             f.store_compare = False
             f.add("F7", NARROW, f"주문 기록 최근 6주({span[0]}~{span[1]})와 지역 데이터 최근 창({recent[0]}~{recent[1]})이 "
-                                f"{ov}일만 겹침(기준 {MIN_OVERLAP_DAYS}일) → 같은 기간 비교가 어려워 동네 흐름만 제공")
+                                f"{ov}일만 겹침(기준 {MIN_OVERLAP_DAYS}일) → 같은 기간 비교가 어려워 가장 최근 동네 흐름"
+                                f"({recent[0]}~{recent[1]})만 참고로 제공")
 
     # F5 범위 축소: 지역 데이터가 기준일보다 오래됨 (진단은 유지하되 안내)
     last753 = next((x.get("last_obs_date") for x in region.get("freshness", []) if x.get("dataset_no") == 753), None)

@@ -3,6 +3,7 @@
 도민이 쉽게 쓰도록: 고민 → 가게 정보(눌러서 고르기) → 주문 기록(선택) → 결과 한눈에 보기 → 자세히 보기
 """
 import json
+import os
 import sys
 from datetime import date, timedelta
 from pathlib import Path
@@ -30,9 +31,18 @@ DEMO_FILE = "synthetic_stores.json" if USE_MOCK else "synthetic_stores_asof_2026
 DEMO = {c["store_input"]["dong_name"]: c["store_input"]
         for c in json.loads((MOCK_DIR / DEMO_FILE).read_text(encoding="utf-8"))}
 
-def recent_weeks(n=8) -> pd.DataFrame:
-    monday = date.today() - timedelta(days=date.today().weekday())
-    return pd.DataFrame({"week_start": [monday - timedelta(weeks=i) for i in range(n, 0, -1)],
+# 빈 주문 표의 마지막 주: 스냅샷 모드는 지역 데이터 마지막 주(같은 기간 비교 가능), 라이브·mock 은 지난주(점주 실제 최근 기간)
+LIVE = os.getenv("COACH_LIVE", "0") == "1"
+DATA_LAST_MONDAY = None
+if not USE_MOCK and not LIVE:
+    from coach.data.region_real import AS_OF as DATA_AS_OF, RECENT_END
+    DATA_LAST_MONDAY = RECENT_END - timedelta(days=6)
+
+
+def recent_weeks(n=12) -> pd.DataFrame:
+    """빈 주문 표. A 비교 규칙(최근 6주 vs 직전 6주)에 맞춰 12주 — 8주면 비교하지 않고 동네 흐름만 나옴(F3)."""
+    last = DATA_LAST_MONDAY or (date.today() - timedelta(days=date.today().weekday()) - timedelta(weeks=1))
+    return pd.DataFrame({"week_start": [last - timedelta(weeks=i) for i in range(n - 1, -1, -1)],
                          "orders": None, "open_days": 6})
 
 
@@ -93,7 +103,10 @@ changeable = st.pills("바꿔 볼 수 있는 것 (여러 개 가능)", list(CHAN
                       format_func=CHANGEABLE.get, default=base.get("changeable", []))
 
 st.subheader(anchor=False, body="3. 최근 주문 수 (선택)")
-st.caption("있으면 동네와 우리 가게를 비교할 수 있어 더 정확해요. 주마다 대략적인 주문 수만 적어 주세요.")
+st.caption("있으면 동네와 우리 가게를 비교할 수 있어 더 정확해요. 주마다 대략적인 주문 수만 적어 주세요. "
+           "**12주**를 적어 주시면 최근 6주와 그 전 6주를 동네 흐름과 같은 기간으로 비교해요.")
+if DATA_LAST_MONDAY:
+    st.caption(f"지금 쓰는 동네 데이터는 **{DATA_AS_OF}까지**예요. 표의 날짜(그 기간 12주)에 맞춰 적어 주시면 비교할 수 있어요.")
 weeks_box = st.expander("주문 수 적기", expanded=False)
 weeks_df = (pd.DataFrame(base["weeks"])[["week_start", "orders", "open_days"]]
             .assign(week_start=lambda d: pd.to_datetime(d.week_start).dt.date)) if base.get("weeks") else recent_weeks()

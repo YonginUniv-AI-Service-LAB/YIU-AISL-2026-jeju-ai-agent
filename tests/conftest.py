@@ -5,3 +5,5 @@ LLM 경로는 test_b_extract.py 에서 가짜 응답(monkeypatch)으로 따로 �
 import os
 
 os.environ.setdefault("COACH_LLM", "0")
+# 테스트는 지정하지 않으면 mock(.env 의 COACH_MOCK=0 보다 우선). 실데이터 테스트는 COACH_MOCK=0 을 셸에서 지정(tasks.py test 가 자동 처리)
+os.environ.setdefault("COACH_MOCK", "1")
